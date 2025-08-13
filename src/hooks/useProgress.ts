@@ -1,10 +1,10 @@
-// src/hooks/useProgress.ts
+// src/hooks/useProgress.ts - Updated to match backend endpoints
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppDispatch } from '@/store';
 import { addToast } from '@/store/slices/uiSlice';
 import { updateQuestionProgress } from '@/store/slices/questionsSlice';
-import { api } from '@/lib/api/client';
+import { progressApi } from '@/lib/api/client';
 import { queryKeys } from '@/lib/query-client';
 import { UserProgress } from '@/types';
 import { useCurrentUser } from './useAuth';
@@ -15,7 +15,7 @@ export function useQuestionProgress(questionId: string) {
   
   return useQuery({
     queryKey: queryKeys.progress.byQuestion(questionId, user?.id || ''),
-    queryFn: () => api.get<UserProgress>(`/dsa/questions/${questionId}/progress`),
+    queryFn: () => progressApi.getQuestionProgress(questionId),
     enabled: !!questionId && !!user?.id,
   });
 }
@@ -26,26 +26,7 @@ export function useProgressStats() {
   
   return useQuery({
     queryKey: queryKeys.progress.stats(user?.id || ''),
-    queryFn: () => api.get<{
-      totalSolved: number;
-      solvedByLevel: {
-        easy: number;
-        medium: number;
-        hard: number;
-      };
-      totalQuestions: number;
-      totalByLevel: {
-        easy: number;
-        medium: number;
-        hard: number;
-      };
-      progressPercentage: number;
-      progressByLevel: {
-        easy: number;
-        medium: number;
-        hard: number;
-      };
-    }>('/dsa/users/progress'),
+    queryFn: () => progressApi.getUserStats(),
     enabled: !!user?.id,
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
@@ -57,13 +38,7 @@ export function useRecentProgress() {
   
   return useQuery({
     queryKey: queryKeys.progress.recent(user?.id || ''),
-    queryFn: () => api.get<Array<{
-      id: string;
-      questionId: string;
-      questionTitle: string;
-      level: string;
-      solvedAt: string;
-    }>>('/dsa/users/progress/recent'),
+    queryFn: () => progressApi.getUserRecent(),
     enabled: !!user?.id,
   });
 }
@@ -74,16 +49,7 @@ export function useCategoryProgress(categoryId: string) {
   
   return useQuery({
     queryKey: queryKeys.progress.byCategory(categoryId, user?.id || ''),
-    queryFn: () => api.get<{
-      totalInCategory: number;
-      solvedInCategory: number;
-      solvedByLevel: {
-        easy: number;
-        medium: number;
-        hard: number;
-      };
-      categoryProgressPercentage: number;
-    }>(`/dsa/categories/${categoryId}/progress`),
+    queryFn: () => progressApi.getCategoryProgress(categoryId),
     enabled: !!categoryId && !!user?.id,
   });
 }
@@ -96,7 +62,7 @@ export function useUpdateProgress() {
 
   return useMutation({
     mutationFn: ({ questionId, solved }: { questionId: string; solved: boolean }) =>
-      api.post<UserProgress>(`/dsa/questions/${questionId}/progress`, { solved }),
+      progressApi.updateQuestionProgress(questionId, { solved }),
     onSuccess: (updatedProgress, { questionId, solved }) => {
       // Update progress cache
       if (user?.id) {

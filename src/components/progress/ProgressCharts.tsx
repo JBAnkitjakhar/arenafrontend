@@ -1,317 +1,260 @@
-// src/components/progress/ProgressCharts.tsx
+// src/components/progress/ProgressChart.tsx
 
 'use client';
 
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
+  BarChart3, 
   TrendingUp, 
-  Target, 
-  Award, 
-  Activity,
-  Calendar,
-  Zap
+  Target,
+  Trophy
 } from 'lucide-react';
 
-interface ProgressStats {
-  totalSolved: number;
-  solvedByLevel: {
-    easy: number;
-    medium: number;
-    hard: number;
-  };
-  totalQuestions: number;
-  totalByLevel: {
-    easy: number;
-    medium: number;
-    hard: number;
-  };
-  progressPercentage: number;
-  progressByLevel: {
-    easy: number;
-    medium: number;
-    hard: number;
-  };
+interface ProgressData {
+  easy: { solved: number; total: number };
+  medium: { solved: number; total: number };
+  hard: { solved: number; total: number };
 }
 
-interface RecentActivity {
-  id: string;
-  questionId: string;
-  questionTitle: string;
-  level: string;
-  solvedAt: string;
+interface ProgressChartProps {
+  data: ProgressData;
+  title?: string;
+  showPercentages?: boolean;
 }
 
-interface ProgressChartsProps {
-  stats: ProgressStats;
-  recentActivity: RecentActivity[];
-}
-
-const COLORS = {
-  easy: '#22c55e',
-  medium: '#f59e0b', 
-  hard: '#ef4444',
-  solved: '#3b82f6',
-  unsolved: '#e5e7eb'
-};
-
-const DIFFICULTY_COLORS = ['#22c55e', '#f59e0b', '#ef4444'];
-
-export function ProgressCharts({ stats, recentActivity }: ProgressChartsProps) {
-  
-  // Data for overall progress pie chart
-  const overallProgressData = [
-    { name: 'Solved', value: stats.totalSolved, color: COLORS.solved },
-    { name: 'Remaining', value: stats.totalQuestions - stats.totalSolved, color: COLORS.unsolved }
-  ];
-
-  // Data for difficulty breakdown
-  const difficultyData = [
-    { 
-      name: 'Easy', 
-      solved: stats.solvedByLevel.easy, 
-      total: stats.totalByLevel.easy,
-      percentage: stats.progressByLevel.easy,
-      color: COLORS.easy
+export function ProgressChart({ data, title = "Progress Overview", showPercentages = true }: ProgressChartProps) {
+  const levels = [
+    {
+      name: 'Easy',
+      data: data.easy,
+      color: '#10B981', // green-500
+      bgColor: '#D1FAE5', // green-100
+      icon: Target,
     },
-    { 
-      name: 'Medium', 
-      solved: stats.solvedByLevel.medium, 
-      total: stats.totalByLevel.medium,
-      percentage: stats.progressByLevel.medium,
-      color: COLORS.medium
+    {
+      name: 'Medium',
+      data: data.medium,
+      color: '#F59E0B', // amber-500
+      bgColor: '#FEF3C7', // amber-100
+      icon: BarChart3,
     },
-    { 
-      name: 'Hard', 
-      solved: stats.solvedByLevel.hard, 
-      total: stats.totalByLevel.hard,
-      percentage: stats.progressByLevel.hard,
-      color: COLORS.hard
-    }
+    {
+      name: 'Hard',
+      data: data.hard,
+      color: '#EF4444', // red-500
+      bgColor: '#FEE2E2', // red-100
+      icon: Trophy,
+    },
   ];
 
-  // Data for detailed pie chart by difficulty
-  const detailedPieData = [
-    { name: 'Easy', value: stats.solvedByLevel.easy, color: COLORS.easy },
-    { name: 'Medium', value: stats.solvedByLevel.medium, color: COLORS.medium },
-    { name: 'Hard', value: stats.solvedByLevel.hard, color: COLORS.hard }
-  ];
-
-  // Process recent activity for activity chart (last 7 days)
-  const processActivityData = () => {
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      return date.toISOString().split('T')[0];
-    }).reverse();
-
-    return last7Days.map(date => {
-      const count = recentActivity.filter(activity => 
-        activity.solvedAt.split('T')[0] === date
-      ).length;
-      
-      return {
-        date: date,
-        day: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
-        solved: count
-      };
-    });
-  };
-
-  const activityData = processActivityData();
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="text-sm font-medium">{`${label}`}</p>
-          {payload.map((entry: any, index: number) => (
-            <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {`${entry.dataKey}: ${entry.value}`}
-            </p>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
+  const totalSolved = Object.values(data).reduce((sum, level) => sum + level.solved, 0);
+  const totalQuestions = Object.values(data).reduce((sum, level) => sum + level.total, 0);
+  const overallPercentage = totalQuestions > 0 ? (totalSolved / totalQuestions) * 100 : 0;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      
-      {/* Overall Progress Pie Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Target className="h-5 w-5 text-blue-600" />
-            <span>Overall Progress</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={overallProgressData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  startAngle={90}
-                  endAngle={-270}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {overallProgressData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          
-          <div className="text-center mt-4">
-            <div className="text-3xl font-bold text-gray-900">
-              {Math.round(stats.progressPercentage)}%
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center">
+          <TrendingUp className="h-5 w-5 mr-2" />
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-6">
+          {/* Overall Progress */}
+          <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <div className="text-3xl font-bold text-blue-600 mb-1">
+              {overallPercentage.toFixed(1)}%
             </div>
             <div className="text-sm text-gray-600">
-              {stats.totalSolved} of {stats.totalQuestions} completed
+              {totalSolved} of {totalQuestions} problems solved
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Difficulty Breakdown Bar Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Award className="h-5 w-5 text-green-600" />
-            <span>Progress by Difficulty</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={difficultyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar 
-                  dataKey="solved" 
-                  fill="#3b82f6"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-4 mt-4">
-            {difficultyData.map((item) => (
-              <div key={item.name} className="text-center">
-                <div className="text-lg font-bold" style={{ color: item.color }}>
-                  {Math.round(item.percentage)}%
-                </div>
-                <div className="text-xs text-gray-600">
-                  {item.name}: {item.solved}/{item.total}
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+          {/* Level-wise Progress */}
+          <div className="space-y-4">
+            {levels.map((level) => {
+              const percentage = level.data.total > 0 
+                ? (level.data.solved / level.data.total) * 100 
+                : 0;
+              const Icon = level.icon;
 
-      {/* Solved Questions by Difficulty Pie */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <TrendingUp className="h-5 w-5 text-purple-600" />
-            <span>Solved Distribution</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={detailedPieData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  dataKey="value"
-                  label={({ name, value, percent }) => 
-                    `${name}: ${value} (${(percent * 100).toFixed(0)}%)`
-                  }
-                >
-                  {detailedPieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
+              return (
+                <div key={level.name} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Icon 
+                        className="h-4 w-4" 
+                        style={{ color: level.color }}
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        {level.name}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-medium text-gray-900">
+                        {level.data.solved}/{level.data.total}
+                      </div>
+                      {showPercentages && (
+                        <div className="text-xs text-gray-500">
+                          {percentage.toFixed(1)}%
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="relative">
+                    <div 
+                      className="w-full rounded-full h-3"
+                      style={{ backgroundColor: level.bgColor }}
+                    >
+                      <div 
+                        className="h-3 rounded-full transition-all duration-500 ease-out"
+                        style={{ 
+                          width: `${Math.min(percentage, 100)}%`,
+                          backgroundColor: level.color
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Progress indicator */}
+                    {percentage > 0 && (
+                      <div 
+                        className="absolute top-0 h-3 w-1 bg-white rounded-full shadow-sm transition-all duration-500"
+                        style={{ 
+                          left: `${Math.min(percentage, 100)}%`,
+                          transform: 'translateX(-50%)'
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          
-          <div className="flex justify-center space-x-6 mt-4">
-            {detailedPieData.map((item) => (
-              <div key={item.name} className="flex items-center space-x-2">
+
+          {/* Summary Stats */}
+          <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+            {levels.map((level) => (
+              <div key={level.name} className="text-center">
                 <div 
-                  className="w-3 h-3 rounded-full" 
-                  style={{ backgroundColor: item.color }}
-                />
-                <span className="text-sm text-gray-600">
-                  {item.name}: {item.value}
-                </span>
+                  className="text-lg font-bold"
+                  style={{ color: level.color }}
+                >
+                  {level.data.solved}
+                </div>
+                <div className="text-xs text-gray-500 uppercase tracking-wide">
+                  {level.name}
+                </div>
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
-      {/* Recent Activity Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Activity className="h-5 w-5 text-orange-600" />
-            <span>7-Day Activity</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={activityData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="day" />
-                <YAxis />
-                <Tooltip content={<CustomTooltip />} />
-                <Line 
-                  type="monotone" 
-                  dataKey="solved" 
-                  stroke="#f59e0b" 
-                  strokeWidth={3}
-                  dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          
-          <div className="flex justify-between items-center mt-4 text-sm text-gray-600">
-            <div className="flex items-center space-x-1">
-              <Calendar className="h-4 w-4" />
-              <span>Last 7 days</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <Zap className="h-4 w-4" />
-              <span>
-                Total: {activityData.reduce((sum, day) => sum + day.solved, 0)} solved
+// Compact version for smaller spaces
+export function CompactProgressChart({ data }: { data: ProgressData }) {
+  const levels = [
+    { name: 'Easy', data: data.easy, color: '#10B981' },
+    { name: 'Medium', data: data.medium, color: '#F59E0B' },
+    { name: 'Hard', data: data.hard, color: '#EF4444' },
+  ];
+
+  return (
+    <div className="space-y-3">
+      {levels.map((level) => {
+        const percentage = level.data.total > 0 
+          ? (level.data.solved / level.data.total) * 100 
+          : 0;
+
+        return (
+          <div key={level.name} className="space-y-1">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium text-gray-700">{level.name}</span>
+              <span className="text-gray-600">
+                {level.data.solved}/{level.data.total}
               </span>
             </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="h-2 rounded-full transition-all duration-300"
+                style={{ 
+                  width: `${Math.min(percentage, 100)}%`,
+                  backgroundColor: level.color
+                }}
+              />
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        );
+      })}
+    </div>
+  );
+}
 
+// Circular progress chart
+export function CircularProgressChart({ 
+  solved, 
+  total, 
+  size = 120, 
+  strokeWidth = 8,
+  color = '#3B82F6'
+}: {
+  solved: number;
+  total: number;
+  size?: number;
+  strokeWidth?: number;
+  color?: string;
+}) {
+  const percentage = total > 0 ? (solved / total) * 100 : 0;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const strokeDasharray = circumference;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="relative inline-flex items-center justify-center">
+      <svg
+        width={size}
+        height={size}
+        className="transform -rotate-90"
+      >
+        {/* Background circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#E5E7EB"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        {/* Progress circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeDasharray={strokeDasharray}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          className="transition-all duration-700 ease-out"
+        />
+      </svg>
+      
+      {/* Center text */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <div className="text-2xl font-bold text-gray-900">
+          {percentage.toFixed(0)}%
+        </div>
+        <div className="text-xs text-gray-500">
+          {solved}/{total}
+        </div>
+      </div>
     </div>
   );
 }

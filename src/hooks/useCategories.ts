@@ -1,65 +1,85 @@
-// src/hooks/useCategories.ts
+// src/hooks/useCategories.ts - Updated to match backend endpoints
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppDispatch } from '@/store';
 import { addToast } from '@/store/slices/uiSlice';
-import { api } from '@/lib/api/client';
+import { categoriesApi } from '@/lib/api/client';
 import { queryKeys } from '@/lib/query-client';
-import { Category } from '@/types';
+
+export interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  questionsCount?: number;
+  difficulty?: 'Easy' | 'Medium' | 'Hard' | 'Mixed';
+  color?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface CategoryStats {
+  totalQuestions: number;
+  questionsByLevel: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
+  totalSolved: number;
+  solvedByLevel: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
+}
 
 // Get all categories
 export function useCategories() {
   return useQuery({
     queryKey: queryKeys.categories.all,
-    queryFn: () => api.get<Category[]>('/dsa/categories'),
+    queryFn: () => categoriesApi.getAll(),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
 // Get category by ID
-export function useCategory(id: string) {
+export function useCategory(categoryId: string) {
   return useQuery({
-    queryKey: queryKeys.categories.detail(id),
-    queryFn: () => api.get<Category>(`/dsa/categories/${id}`),
-    enabled: !!id,
+    queryKey: queryKeys.categories.detail(categoryId),
+    queryFn: () => categoriesApi.getById(categoryId),
+    enabled: !!categoryId,
   });
 }
 
 // Get category statistics
-export function useCategoryStats(id: string) {
+export function useCategoryStats(categoryId: string) {
   return useQuery({
-    queryKey: queryKeys.categories.stats(id),
-    queryFn: () => api.get<{
-      totalQuestions: number;
-      questionsByLevel: {
-        easy: number;
-        medium: number;
-        hard: number;
-      };
-      totalSolutions: number;
-    }>(`/dsa/categories/${id}/stats`),
-    enabled: !!id,
+    queryKey: queryKeys.categories.stats(categoryId),
+    queryFn: () => categoriesApi.getStats(categoryId),
+    enabled: !!categoryId,
   });
 }
 
-// Create category mutation (Admin only)
+// Create category
 export function useCreateCategory() {
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
 
   return useMutation({
-    mutationFn: (data: { name: string }) => 
-      api.post<Category>('/dsa/categories', data),
+    mutationFn: (data: Omit<Category, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) =>
+      categoriesApi.create(data),
     onSuccess: (newCategory) => {
-      // Update categories cache
-      queryClient.setQueryData<Category[]>(
-        queryKeys.categories.all,
-        (old) => old ? [newCategory, ...old] : [newCategory]
-      );
+      // Invalidate categories list
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.categories.all
+      });
       
       dispatch(addToast({
-        title: 'Success',
-        description: `Category "${newCategory.name}" created successfully`,
+        title: 'Category Created',
+        description: `"${newCategory.name}" has been created successfully.`,
         type: 'success',
       }));
     },
@@ -74,23 +94,25 @@ export function useCreateCategory() {
   });
 }
 
-// Update category mutation (Admin only)
+// Update category
 export function useUpdateCategory() {
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { name: string } }) =>
-      api.put<Category>(`/dsa/categories/${id}`, data),
+    mutationFn: ({ categoryId, data }: { 
+      categoryId: string; 
+      data: Partial<Omit<Category, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>>
+    }) =>
+      categoriesApi.update(categoryId, data),
     onSuccess: (updatedCategory) => {
-      // Update categories cache
-      queryClient.setQueryData<Category[]>(
-        queryKeys.categories.all,
-        (old) => 
-          old?.map(cat => 
-            cat.id === updatedCategory.id ? updatedCategory : cat
-          ) || []
-      );
+      // Update categories list
+      queryClient.setQueryData(queryKeys.categories.all, (oldData: Category[] | undefined) => {
+        if (!oldData) return [updatedCategory];
+        return oldData.map(cat => 
+          cat.id === updatedCategory.id ? updatedCategory : cat
+        );
+      });
       
       // Update individual category cache
       queryClient.setQueryData(
@@ -99,8 +121,8 @@ export function useUpdateCategory() {
       );
       
       dispatch(addToast({
-        title: 'Success',
-        description: 'Category updated successfully',
+        title: 'Category Updated',
+        description: `"${updatedCategory.name}" has been updated successfully.`,
         type: 'success',
       }));
     },
@@ -115,33 +137,33 @@ export function useUpdateCategory() {
   });
 }
 
-// Delete category mutation (Admin only)
+// Delete category
 export function useDeleteCategory() {
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
 
   return useMutation({
-    mutationFn: (id: string) => api.delete(`/dsa/categories/${id}`),
-    onSuccess: (_, deletedId) => {
-      // Remove from categories cache
-      queryClient.setQueryData<Category[]>(
-        queryKeys.categories.all,
-        (old) => old?.filter(cat => cat.id !== deletedId) || []
-      );
+    mutationFn: (categoryId: string) => categoriesApi.delete(categoryId),
+    onSuccess: (result, categoryId) => {
+      // Remove from categories list
+      queryClient.setQueryData(queryKeys.categories.all, (oldData: Category[] | undefined) => {
+        if (!oldData) return [];
+        return oldData.filter(cat => cat.id !== categoryId);
+      });
       
       // Remove individual category cache
       queryClient.removeQueries({
-        queryKey: queryKeys.categories.detail(deletedId)
+        queryKey: queryKeys.categories.detail(categoryId)
       });
       
-      // Invalidate related queries
+      // Invalidate questions list (since questions in this category are affected)
       queryClient.invalidateQueries({
-        queryKey: queryKeys.questions.all
+        queryKey: queryKeys.questions.lists()
       });
       
       dispatch(addToast({
-        title: 'Success',
-        description: 'Category and all related questions deleted successfully',
+        title: 'Category Deleted',
+        description: `Category and ${result.deletedQuestions} questions have been deleted.`,
         type: 'success',
       }));
     },

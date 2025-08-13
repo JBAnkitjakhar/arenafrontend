@@ -1,82 +1,74 @@
-// src/lib/query-client.ts
+// src/lib/query-client.ts - Updated queryKeys section
 
-import { QueryClient } from '@tanstack/react-query';
-
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      retry: (failureCount, error: any) => {
-        // Don't retry on 401/403 errors
-        if (error?.response?.status === 401 || error?.response?.status === 403) {
-          return false;
-        }
-        // Retry up to 3 times for other errors
-        return failureCount < 3;
-      },
-      refetchOnWindowFocus: false,
-      refetchOnMount: true,
-    },
-    mutations: {
-      retry: false,
-    },
-  },
-});
-
-// Query Keys - organized by feature
 export const queryKeys = {
-  // Auth
+  // Auth related queries
   auth: {
     user: ['auth', 'user'] as const,
+    refreshToken: ['auth', 'refresh'] as const,
   },
-  
-  // Categories
-  categories: {
-    all: ['categories'] as const,
-    detail: (id: string) => ['categories', id] as const,
-    stats: (id: string) => ['categories', id, 'stats'] as const,
-  },
-  
-  // Questions
+
+  // Questions related queries
   questions: {
     all: ['questions'] as const,
+    lists: () => ['questions', 'list'] as const,
     list: (filters: Record<string, any>) => ['questions', 'list', filters] as const,
-    detail: (id: string) => ['questions', id] as const,
-    byCategory: (categoryId: string) => ['questions', 'category', categoryId] as const,
+    detail: (id: string) => ['questions', 'detail', id] as const,
     counts: ['questions', 'counts'] as const,
-    search: (term: string) => ['questions', 'search', term] as const,
+    search: (query: string) => ['questions', 'search', query] as const,
   },
-  
-  // Solutions
+
+  // Categories related queries
+  categories: {
+    all: ['categories'] as const,
+    lists: () => ['categories', 'list'] as const,
+    detail: (id: string) => ['categories', 'detail', id] as const,
+    stats: (id: string) => ['categories', 'stats', id] as const,
+  },
+
+  // Solutions related queries
   solutions: {
     all: ['solutions'] as const,
-    detail: (id: string) => ['solutions', id] as const,
     byQuestion: (questionId: string) => ['solutions', 'question', questionId] as const,
+    detail: (id: string) => ['solutions', 'detail', id] as const,
   },
-  
-  // Approaches
+
+  // Approaches related queries
   approaches: {
-    byQuestion: (questionId: string, userId: string) => 
-      ['approaches', 'question', questionId, 'user', userId] as const,
-    detail: (id: string) => ['approaches', id] as const,
-    sizeUsage: (questionId: string, userId: string) => 
-      ['approaches', 'size-usage', questionId, userId] as const,
+    all: ['approaches'] as const,
+    byQuestion: (questionId: string) => ['approaches', 'question', questionId] as const,
+    byUser: (userId: string) => ['approaches', 'user', userId] as const,
+    detail: (id: string) => ['approaches', 'detail', id] as const,
   },
-  
-  // User Progress
+
+  // Progress related queries
   progress: {
-    byQuestion: (questionId: string, userId: string) => 
-      ['progress', 'question', questionId, 'user', userId] as const,
+    all: ['progress'] as const,
     stats: (userId: string) => ['progress', 'stats', userId] as const,
     recent: (userId: string) => ['progress', 'recent', userId] as const,
-    byCategory: (categoryId: string, userId: string) => 
-      ['progress', 'category', categoryId, 'user', userId] as const,
+    byQuestion: (questionId: string, userId: string) => ['progress', 'question', questionId, userId] as const,
+    byCategory: (categoryId: string, userId: string) => ['progress', 'category', categoryId, userId] as const,
+    byUser: (userId: string) => ['progress', 'user', userId] as const,
   },
-  
-  // Compiler
+
+  // Users related queries
+  users: {
+    all: ['users'] as const,
+    lists: () => ['users', 'list'] as const,
+    list: (filters: Record<string, any>) => ['users', 'list', filters] as const,
+    detail: (id: string) => ['users', 'detail', id] as const,
+    profile: (id: string) => ['users', 'profile', id] as const,
+  },
+
+  // Compiler related queries
   compiler: {
-    runtimes: ['compiler', 'runtimes'] as const,
+    execute: ['compiler', 'execute'] as const,
     languages: ['compiler', 'languages'] as const,
-    health: ['compiler', 'health'] as const,
+  },
+
+  // Admin related queries
+  admin: {
+    stats: ['admin', 'stats'] as const,
+    settings: ['admin', 'settings'] as const,
+    logs: ['admin', 'logs'] as const,
   },
 } as const;

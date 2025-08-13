@@ -3,198 +3,275 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { useProgressStats } from '@/hooks/useProgress';
 import { 
-  Trophy, 
-  Target, 
   TrendingUp, 
-  Calendar,
-  Flame,
-  Award,
-  BookOpen,
-  CheckCircle,
+  Target, 
+  Trophy, 
   Clock,
-  Zap,
-  Star,
+  CheckCircle,
+  Circle,
   BarChart3
 } from 'lucide-react';
-import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
-import 'react-circular-progressbar/dist/styles.css';
-import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
-interface ProgressStats {
-  totalSolved: number;
-  solvedByLevel: {
-    easy: number;
-    medium: number;
-    hard: number;
-  };
-  totalQuestions: number;
-  totalByLevel: {
-    easy: number;
-    medium: number;
-    hard: number;
-  };
-  progressPercentage: number;
-  progressByLevel: {
-    easy: number;
-    medium: number;
-    hard: number;
-  };
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: 'blue' | 'green' | 'orange' | 'red' | 'purple';
+  progress?: number;
 }
 
-interface ProgressStatsProps {
-  stats: ProgressStats;
-  streak?: number;
-  rank?: number;
-  totalUsers?: number;
-}
-
-export function ProgressStats({ stats, streak = 0, rank = 0, totalUsers = 0 }: ProgressStatsProps) {
-  
-  const getDifficultyColor = (level: string) => {
-    switch (level) {
-      case 'easy': return '#22c55e';
-      case 'medium': return '#f59e0b';
-      case 'hard': return '#ef4444';
-      default: return '#6b7280';
-    }
+const StatCard = ({ title, value, description, icon: Icon, color, progress }: StatCardProps) => {
+  const colorClasses = {
+    blue: 'text-blue-500 bg-blue-50',
+    green: 'text-green-500 bg-green-50',
+    orange: 'text-orange-500 bg-orange-50',
+    red: 'text-red-500 bg-red-50',
+    purple: 'text-purple-500 bg-purple-50',
   };
 
-  const getProgressLevel = (percentage: number) => {
-    if (percentage >= 80) return { level: 'Expert', color: 'text-purple-600', icon: Star };
-    if (percentage >= 60) return { level: 'Advanced', color: 'text-blue-600', icon: Award };
-    if (percentage >= 40) return { level: 'Intermediate', color: 'text-green-600', icon: TrendingUp };
-    if (percentage >= 20) return { level: 'Beginner', color: 'text-yellow-600', icon: Target };
-    return { level: 'Starter', color: 'text-gray-600', icon: BookOpen };
+  const progressColors = {
+    blue: 'bg-blue-500',
+    green: 'bg-green-500',
+    orange: 'bg-orange-500',
+    red: 'bg-red-500',
+    purple: 'bg-purple-500',
   };
-
-  const progressLevel = getProgressLevel(stats.progressPercentage);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      
-      {/* Overall Progress Card */}
-      <Card className="relative overflow-hidden">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-gray-600 flex items-center space-x-2">
-            <Target className="h-4 w-4" />
-            <span>Overall Progress</span>
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium text-gray-600 flex items-center">
+          <div className={cn('p-2 rounded-lg mr-3', colorClasses[color])}>
+            <Icon className="h-4 w-4" />
+          </div>
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold text-gray-900 mb-1">
+          {value}
+        </div>
+        <div className="text-sm text-gray-600 mb-3">
+          {description}
+        </div>
+        {progress !== undefined && (
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className={cn('h-2 rounded-full transition-all duration-300', progressColors[color])}
+              style={{ width: `${Math.min(progress, 100)}%` }}
+            />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+interface LevelProgressProps {
+  level: 'easy' | 'medium' | 'hard';
+  solved: number;
+  total: number;
+  percentage: number;
+}
+
+const LevelProgress = ({ level, solved, total, percentage }: LevelProgressProps) => {
+  const levelConfig = {
+    easy: {
+      color: 'text-green-600',
+      bg: 'bg-green-500',
+      icon: Target,
+      label: 'Easy',
+    },
+    medium: {
+      color: 'text-orange-600',
+      bg: 'bg-orange-500',
+      icon: Circle,
+      label: 'Medium',
+    },
+    hard: {
+      color: 'text-red-600',
+      bg: 'bg-red-500',
+      icon: Trophy,
+      label: 'Hard',
+    },
+  };
+
+  const config = levelConfig[level];
+  const Icon = config.icon;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Icon className={cn('h-4 w-4', config.color)} />
+          <span className="text-sm font-medium text-gray-700">{config.label}</span>
+        </div>
+        <span className="text-sm text-gray-600">
+          {solved}/{total} ({percentage.toFixed(1)}%)
+        </span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-2">
+        <div 
+          className={cn('h-2 rounded-full transition-all duration-300', config.bg)}
+          style={{ width: `${Math.min(percentage, 100)}%` }}
+        />
+      </div>
+    </div>
+  );
+};
+
+export function ProgressStats() {
+  const { data: stats, isLoading, error } = useProgressStats();
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="pb-2">
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-gray-200 rounded w-1/2 mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-full mb-3"></div>
+                <div className="h-2 bg-gray-200 rounded w-full"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center">
+          <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Unable to load progress</h3>
+          <p className="text-gray-600">Please try again later.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!stats) {
+    return null;
+  }
+
+  const overallProgress = Math.round(stats.progressPercentage);
+
+  return (
+    <div className="space-y-6">
+      {/* Overview Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Overall Progress"
+          value={`${stats.totalSolved}/${stats.totalQuestions}`}
+          description={`${overallProgress}% completed`}
+          icon={TrendingUp}
+          color="blue"
+          progress={overallProgress}
+        />
+        
+        <StatCard
+          title="Easy Problems"
+          value={stats.solvedByLevel.easy}
+          description={`out of ${stats.totalByLevel.easy} problems`}
+          icon={Target}
+          color="green"
+          progress={stats.progressByLevel.easy}
+        />
+        
+        <StatCard
+          title="Medium Problems"
+          value={stats.solvedByLevel.medium}
+          description={`out of ${stats.totalByLevel.medium} problems`}
+          icon={Circle}
+          color="orange"
+          progress={stats.progressByLevel.medium}
+        />
+        
+        <StatCard
+          title="Hard Problems"
+          value={stats.solvedByLevel.hard}
+          description={`out of ${stats.totalByLevel.hard} problems`}
+          icon={Trophy}
+          color="red"
+          progress={stats.progressByLevel.hard}
+        />
+      </div>
+
+      {/* Detailed Level Progress */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <BarChart3 className="h-5 w-5 mr-2" />
+            Progress by Difficulty
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-4">
-            <div className="w-16 h-16">
-              <CircularProgressbar
-                value={stats.progressPercentage}
-                text={`${Math.round(stats.progressPercentage)}%`}
-                styles={buildStyles({
-                  textSize: '24px',
-                  pathColor: '#3b82f6',
-                  textColor: '#1f2937',
-                  trailColor: '#e5e7eb',
-                  pathTransitionDuration: 1.5,
-                })}
-              />
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-gray-900">
-                {stats.totalSolved}
-              </div>
-              <div className="text-sm text-gray-600">
-                of {stats.totalQuestions} solved
-              </div>
-              <div className={`text-xs font-medium ${progressLevel.color} flex items-center space-x-1 mt-1`}>
-                <progressLevel.icon className="h-3 w-3" />
-                <span>{progressLevel.level}</span>
-              </div>
-            </div>
-          </div>
+        <CardContent className="space-y-6">
+          <LevelProgress
+            level="easy"
+            solved={stats.solvedByLevel.easy}
+            total={stats.totalByLevel.easy}
+            percentage={stats.progressByLevel.easy}
+          />
+          <LevelProgress
+            level="medium"
+            solved={stats.solvedByLevel.medium}
+            total={stats.totalByLevel.medium}
+            percentage={stats.progressByLevel.medium}
+          />
+          <LevelProgress
+            level="hard"
+            solved={stats.solvedByLevel.hard}
+            total={stats.totalByLevel.hard}
+            percentage={stats.progressByLevel.hard}
+          />
         </CardContent>
-        
-        {/* Background decoration */}
-        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-blue-100 rounded-full opacity-20"></div>
       </Card>
 
-      {/* Streak Card */}
-      <Card className="relative overflow-hidden">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-gray-600 flex items-center space-x-2">
-            <Flame className="h-4 w-4" />
-            <span>Current Streak</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
-              <Flame className="h-8 w-8 text-orange-500" />
+      {/* Quick Stats Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-3xl font-bold text-blue-600 mb-2">
+              {overallProgress}%
             </div>
-            <div>
-              <div className="text-2xl font-bold text-gray-900">
-                {streak}
-              </div>
-              <div className="text-sm text-gray-600">
-                {streak === 1 ? 'day' : 'days'} in a row
-              </div>
-              <div className="text-xs text-orange-600 font-medium mt-1">
-                {streak >= 7 ? '🔥 On fire!' : streak >= 3 ? '💪 Great job!' : '🚀 Keep going!'}
-              </div>
+            <div className="text-sm text-gray-600">
+              Total Completion
             </div>
-          </div>
-        </CardContent>
+          </CardContent>
+        </Card>
         
-        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-orange-100 rounded-full opacity-20"></div>
-      </Card>
-
-      {/* Difficulty Breakdown */}
-      <Card className="relative overflow-hidden">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-gray-600 flex items-center space-x-2">
-            <BarChart3 className="h-4 w-4" />
-            <span>By Difficulty</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {Object.entries(stats.solvedByLevel).map(([level, solved]) => {
-              const total = stats.totalByLevel[level as keyof typeof stats.totalByLevel];
-              const percentage = total > 0 ? (solved / total) * 100 : 0;
-              
-              return (
-                <div key={level} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: getDifficultyColor(level) }}
-                    />
-                    <span className="text-sm capitalize text-gray-700">{level}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-medium text-gray-900">
-                      {solved}/{total}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {Math.round(percentage)}%
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-3xl font-bold text-green-600 mb-2">
+              {stats.totalSolved}
+            </div>
+            <div className="text-sm text-gray-600">
+              Problems Solved
+            </div>
+          </CardContent>
+        </Card>
         
-        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-green-100 rounded-full opacity-20"></div>
-      </Card>
-
-      {/* Rank & Achievement */}
-      <Card className="relative overflow-hidden">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-gray-600 flex items-center space-x-2">
-            <Trophy className="h-4 w-4" />
-            <span>Rank & Achievements</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {/* Rank */}
-            {rank > 0 && totalUsers > 0 && (
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-3xl font-bold text-purple-600 mb-2">
+              {stats.totalQuestions - stats.totalSolved}
+            </div>
+            <div className="text-sm text-gray-600">
+              Remaining Problems
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

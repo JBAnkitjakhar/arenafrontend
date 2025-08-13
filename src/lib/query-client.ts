@@ -1,4 +1,4 @@
-// src/lib/query-client.ts - Updated queryKeys section
+// src/lib/query-client.ts  
 
 export const queryKeys = {
   // Auth related queries

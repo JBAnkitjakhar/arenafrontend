@@ -1,4 +1,4 @@
-// src/app/admin/questions/page.tsx
+// src/app/admin/questions/page.tsx - Fixed version
 
 'use client';
 
@@ -9,27 +9,22 @@ import { useCategories } from '@/hooks/useCategories';
 import { AdminRoute } from '@/components/auth/RouteGuard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { 
   Plus, 
   Search, 
   Edit, 
   Trash2, 
   Eye,
-  Filter,
   BookOpen,
   Calendar,
   User,
-  MoreVertical,
-  ExternalLink
 } from 'lucide-react';
 import { QuestionLevel, Question } from '@/types';
-import { getDifficultyColor } from '@/lib/utils';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 
-// Simple components
-const Input = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
+// Simple components to avoid import conflicts
+const SearchInput = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     className={`flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 ${className}`}
     {...props}
@@ -58,8 +53,8 @@ export default function AdminQuestionsPage() {
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null);
 
-  // API calls
-  const { data: categories } = useCategories();
+  // API calls with proper type handling
+  const { data: categories = [] } = useCategories();
   const { data: counts } = useQuestionCounts();
   const { data: questionsData, isLoading } = useQuestions({
     page: currentPage,
@@ -69,7 +64,8 @@ export default function AdminQuestionsPage() {
     search: searchQuery,
   });
 
-  const questions = questionsData?.content || [];
+  // Safely extract data with defaults
+  const questions: Question[] = questionsData?.content || [];
   const totalPages = questionsData?.totalPages || 0;
   const totalElements = questionsData?.totalElements || 0;
 
@@ -113,8 +109,8 @@ export default function AdminQuestionsPage() {
     try {
       await deleteQuestion.mutateAsync(questionId);
       setShowDeleteModal(null);
-    } catch (error) {
-      // Error handled in hook
+    } catch {
+      // Error handling is done in hook
     }
   };
 
@@ -177,7 +173,7 @@ export default function AdminQuestionsPage() {
               <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                 <div>
-                  <div className="text-2xl font-bold">{counts?.byLevel.easy || 0}</div>
+                  <div className="text-2xl font-bold">{counts?.byLevel?.easy || 0}</div>
                   <div className="text-sm text-gray-600">Easy</div>
                 </div>
               </div>
@@ -189,7 +185,7 @@ export default function AdminQuestionsPage() {
               <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
                 <div>
-                  <div className="text-2xl font-bold">{counts?.byLevel.medium || 0}</div>
+                  <div className="text-2xl font-bold">{counts?.byLevel?.medium || 0}</div>
                   <div className="text-sm text-gray-600">Medium</div>
                 </div>
               </div>
@@ -201,7 +197,7 @@ export default function AdminQuestionsPage() {
               <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                 <div>
-                  <div className="text-2xl font-bold">{counts?.byLevel.hard || 0}</div>
+                  <div className="text-2xl font-bold">{counts?.byLevel?.hard || 0}</div>
                   <div className="text-sm text-gray-600">Hard</div>
                 </div>
               </div>
@@ -217,7 +213,7 @@ export default function AdminQuestionsPage() {
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
+                  <SearchInput
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
                     placeholder="Search questions..."
@@ -234,7 +230,7 @@ export default function AdminQuestionsPage() {
                 className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">All Categories</option>
-                {categories?.map((category) => (
+                {categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
                   </option>
@@ -308,7 +304,7 @@ export default function AdminQuestionsPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {questions.map((question) => (
+                {questions.map((question: Question) => (
                   <div
                     key={question.id}
                     className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"

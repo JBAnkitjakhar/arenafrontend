@@ -1,11 +1,11 @@
-// src/hooks/useQuestions.ts - Updated to match backend endpoints
+// src/hooks/useQuestions.ts  
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppDispatch } from '@/store';
 import { addToast } from '@/store/slices/uiSlice';
 import { questionsApi } from '@/lib/api/client';
 import { queryKeys } from '@/lib/query-client';
-import { Question, QuestionDetail, PaginatedResponse } from '@/types';
+import { Question, QuestionDetail, PaginatedResponse, QuestionFormData } from '@/types';
 
 interface QuestionsParams {
   page?: number;
@@ -27,6 +27,18 @@ export function useQuestions(params: QuestionsParams = {}) {
       search: params.search,
     }),
     staleTime: 1 * 60 * 1000, // 1 minute
+    select: (data: any): PaginatedResponse<Question> => {
+      // Ensure the data matches our expected type
+      return {
+        content: data?.content || data?.data?.content || [],
+        totalElements: data?.totalElements || data?.data?.totalElements || 0,
+        totalPages: data?.totalPages || data?.data?.totalPages || 0,
+        number: data?.number || data?.data?.number || 0,
+        size: data?.size || data?.data?.size || 20,
+        first: data?.first || data?.data?.first || true,
+        last: data?.last || data?.data?.last || true,
+      };
+    },
   });
 }
 
@@ -37,6 +49,11 @@ export function useQuestionDetail(questionId: string) {
     queryFn: () => questionsApi.getById(questionId),
     enabled: !!questionId,
     staleTime: 2 * 60 * 1000, // 2 minutes
+    select: (data: any): QuestionDetail => {
+      // Handle both direct response and wrapped response
+      const questionData = data?.data || data;
+      return questionData;
+    },
   });
 }
 
@@ -46,6 +63,21 @@ export function useQuestionCounts() {
     queryKey: queryKeys.questions.counts,
     queryFn: () => questionsApi.getStats(),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    select: (data: any) => {
+      // Ensure the data structure matches what the UI expects
+      const counts = data?.data || data;
+      return {
+        total: counts?.total || 0,
+        byLevel: {
+          easy: counts?.byLevel?.easy || 0,
+          medium: counts?.byLevel?.medium || 0,
+          hard: counts?.byLevel?.hard || 0,
+        },
+        byCategory: counts?.byCategory || {},
+        solved: counts?.solved || 0,
+        unsolved: counts?.unsolved || 0,
+      };
+    },
   });
 }
 
@@ -56,6 +88,9 @@ export function useSearchQuestions(query: string) {
     queryFn: () => questionsApi.search(query),
     enabled: !!query && query.length > 2,
     staleTime: 1 * 60 * 1000, // 1 minute
+    select: (data: any): Question[] => {
+      return data?.data || data || [];
+    },
   });
 }
 
@@ -65,7 +100,7 @@ export function useCreateQuestion() {
   const dispatch = useAppDispatch();
 
   return useMutation({
-    mutationFn: (data: any) => questionsApi.create(data),
+    mutationFn: (data: QuestionFormData) => questionsApi.create(data),
     onSuccess: (newQuestion) => {
       // Invalidate questions lists
       queryClient.invalidateQueries({
@@ -77,14 +112,15 @@ export function useCreateQuestion() {
         queryKey: queryKeys.questions.counts
       });
       
+      const questionData = newQuestion?.data || newQuestion;
       dispatch(addToast({
         title: 'Question Created',
-        description: `"${newQuestion.title}" has been created successfully.`,
+        description: `"${questionData.title}" has been created successfully.`,
         type: 'success',
       }));
     },
     onError: (error: any) => {
-      const message = error?.response?.data?.error || 'Failed to create question';
+      const message = error?.response?.data?.error || error?.response?.data?.message || 'Failed to create question';
       dispatch(addToast({
         title: 'Error',
         description: message,
@@ -100,13 +136,15 @@ export function useUpdateQuestion() {
   const dispatch = useAppDispatch();
 
   return useMutation({
-    mutationFn: ({ questionId, data }: { questionId: string; data: any }) =>
+    mutationFn: ({ questionId, data }: { questionId: string; data: QuestionFormData }) =>
       questionsApi.update(questionId, data),
     onSuccess: (updatedQuestion, { questionId }) => {
+      const questionData = updatedQuestion?.data || updatedQuestion;
+      
       // Update specific question cache
       queryClient.setQueryData(
         queryKeys.questions.detail(questionId),
-        updatedQuestion
+        questionData
       );
       
       // Invalidate questions lists
@@ -116,12 +154,12 @@ export function useUpdateQuestion() {
       
       dispatch(addToast({
         title: 'Question Updated',
-        description: `"${updatedQuestion.title}" has been updated successfully.`,
+        description: `"${questionData.title}" has been updated successfully.`,
         type: 'success',
       }));
     },
     onError: (error: any) => {
-      const message = error?.response?.data?.error || 'Failed to update question';
+      const message = error?.response?.data?.error || error?.response?.data?.message || 'Failed to update question';
       dispatch(addToast({
         title: 'Error',
         description: message,
@@ -156,7 +194,7 @@ export function useDeleteQuestion() {
       
       // Invalidate progress data (since question is deleted)
       queryClient.invalidateQueries({
-        queryKey: queryKeys.progress.all
+        queryKey: ['progress']
       });
       
       dispatch(addToast({
@@ -166,7 +204,7 @@ export function useDeleteQuestion() {
       }));
     },
     onError: (error: any) => {
-      const message = error?.response?.data?.error || 'Failed to delete question';
+      const message = error?.response?.data?.error || error?.response?.data?.message || 'Failed to delete question';
       dispatch(addToast({
         title: 'Error',
         description: message,

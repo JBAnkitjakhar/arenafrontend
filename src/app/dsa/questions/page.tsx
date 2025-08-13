@@ -1,15 +1,14 @@
-// src/app/dsa/questions/page.tsx
+// src/app/dsa/questions/page.tsx  
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuestions, useQuestionCounts } from '@/hooks/useQuestions';
 import { useCategories } from '@/hooks/useCategories';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { QuestionCard } from '@/components/dsa/QuestionCard';
 import { 
   Search, 
@@ -23,8 +22,8 @@ import { QuestionLevel, UserRole } from '@/types';
 import { cn, getDifficultyColor } from '@/lib/utils';
 import Link from 'next/link';
 
-// Custom Input component
-const Input = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
+// Local Input component to avoid conflicts
+const QuestionsInput = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     className={cn(
       'flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50',
@@ -49,7 +48,7 @@ export default function QuestionsPage() {
   const [searchInput, setSearchInput] = useState(searchQuery);
   
   // API calls
-  const { data: categories } = useCategories();
+  const { data: categories = [] } = useCategories();
   const { data: counts } = useQuestionCounts();
   const { data: questionsData, isLoading } = useQuestions({
     page: currentPage,
@@ -186,7 +185,7 @@ export default function QuestionsPage() {
           <div className="flex space-x-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
+              <QuestionsInput
                 placeholder="Search questions..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
@@ -206,7 +205,7 @@ export default function QuestionsPage() {
           <div>
             <div className="text-sm font-medium text-gray-700 mb-2">Categories</div>
             <div className="flex flex-wrap gap-2">
-              {categories?.map((category) => (
+              {categories.map((category) => (
                 <button
                   key={category.id}
                   onClick={() => handleCategoryFilter(category.id)}

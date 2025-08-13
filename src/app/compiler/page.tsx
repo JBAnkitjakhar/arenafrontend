@@ -9,7 +9,7 @@ import { OutputPanel } from '@/components/compiler/OutputPanel';
 import { InputPanel } from '@/components/compiler/InputPanel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+// import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Code, 
   Zap, 
@@ -21,10 +21,11 @@ import {
   Activity
 } from 'lucide-react';
 import { ExecutionRequest } from '@/types';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function CompilerPage() {
   const compilerState = useCompilerState();
-  const { data: runtimes, isLoading: isLoadingRuntimes } = useRuntimes();
+  const { isLoading: isLoadingRuntimes } = useRuntimes();
   const { data: languages } = useLanguages();
   const { data: health } = useCompilerHealth();
   const executeCode = useExecuteCode();

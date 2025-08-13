@@ -1,6 +1,7 @@
-// src/app/admin/questions/layout.tsx
+// src/app/admin/questions/layout.tsx 
 
 import { RouteGuard } from '@/components/auth/RouteGuard';
+import { UserRole } from '@/types';
 import AdminLayout from '../layout';
 
 export default function AdminQuestionsLayout({
@@ -9,7 +10,7 @@ export default function AdminQuestionsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <RouteGuard requireAuth={true} requiredRoles={['ADMIN', 'SUPERADMIN']}>
+    <RouteGuard requireAuth={true} requiredRoles={[UserRole.ADMIN, UserRole.SUPERADMIN]}>
       <AdminLayout>
         <div className="space-y-6">
           <div className="flex items-center justify-between">

@@ -1,4 +1,4 @@
-// src/components/auth/RouteGuard.tsx
+// src/components/auth/RouteGuard.tsx  
 
 'use client';
 
@@ -11,6 +11,7 @@ interface RouteGuardProps {
   children: React.ReactNode;
   requireAuth?: boolean;
   requiredRole?: UserRole;
+  requiredRoles?: UserRole[]; // Added support for multiple roles
   redirectTo?: string;
 }
 
@@ -18,6 +19,7 @@ export function RouteGuard({
   children,
   requireAuth = true,
   requiredRole,
+  requiredRoles,
   redirectTo = '/auth/login',
 }: RouteGuardProps) {
   const router = useRouter();
@@ -33,7 +35,7 @@ export function RouteGuard({
       return;
     }
 
-    // Check role requirement
+    // Check role requirement (single role)
     if (requiredRole && user && user.role !== requiredRole) {
       // Check if user has sufficient privileges
       const roleHierarchy = {
@@ -55,7 +57,33 @@ export function RouteGuard({
         return;
       }
     }
-  }, [isAuthenticated, isLoading, user, requireAuth, requiredRole, router, redirectTo]);
+
+    // Check role requirement (multiple roles)
+    if (requiredRoles && user && !requiredRoles.includes(user.role)) {
+      // Check if user has any of the required roles or higher privileges
+      const roleHierarchy = {
+        [UserRole.USER]: 0,
+        [UserRole.ADMIN]: 1,
+        [UserRole.SUPERADMIN]: 2,
+      };
+
+      const userLevel = roleHierarchy[user.role];
+      const hasRequiredRole = requiredRoles.some(role => {
+        const requiredLevel = roleHierarchy[role];
+        return userLevel >= requiredLevel;
+      });
+
+      if (!hasRequiredRole) {
+        // Redirect to appropriate page based on user role
+        if (user.role === UserRole.USER) {
+          router.push('/dashboard');
+        } else {
+          router.push('/admin');
+        }
+        return;
+      }
+    }
+  }, [isAuthenticated, isLoading, user, requireAuth, requiredRole, requiredRoles, router, redirectTo]);
 
   // Show loading while determining auth state
   if (isLoading) {
@@ -71,7 +99,7 @@ export function RouteGuard({
     return null;
   }
 
-  // Don't render if role check failed
+  // Don't render if role check failed (single role)
   if (requiredRole && user) {
     const roleHierarchy = {
       [UserRole.USER]: 0,
@@ -87,13 +115,32 @@ export function RouteGuard({
     }
   }
 
+  // Don't render if role check failed (multiple roles)
+  if (requiredRoles && user) {
+    const roleHierarchy = {
+      [UserRole.USER]: 0,
+      [UserRole.ADMIN]: 1,
+      [UserRole.SUPERADMIN]: 2,
+    };
+
+    const userLevel = roleHierarchy[user.role];
+    const hasRequiredRole = requiredRoles.some(role => {
+      const requiredLevel = roleHierarchy[role];
+      return userLevel >= requiredLevel;
+    });
+
+    if (!hasRequiredRole) {
+      return null;
+    }
+  }
+
   return <>{children}</>;
 }
 
 // Convenience components for specific roles
 export function AdminRoute({ children }: { children: React.ReactNode }) {
   return (
-    <RouteGuard requiredRole={UserRole.ADMIN}>
+    <RouteGuard requiredRoles={[UserRole.ADMIN, UserRole.SUPERADMIN]}>
       {children}
     </RouteGuard>
   );

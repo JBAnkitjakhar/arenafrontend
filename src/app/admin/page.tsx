@@ -18,9 +18,7 @@ import {
   Crown,
   Settings,
   BarChart3,
-  FileText,
   Database,
-  Link as LinkIcon
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';

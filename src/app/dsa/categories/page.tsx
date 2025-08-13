@@ -1,4 +1,4 @@
-// src/app/dsa/categories/page.tsx
+// src/app/dsa/categories/page.tsx 
 
 'use client';
 
@@ -7,7 +7,6 @@ import { useCategories } from '@/hooks/useCategories';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { 
   Search,
   FolderOpen,
@@ -19,11 +18,11 @@ import {
   Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { UserRole } from '@/types';
+import { UserRole, Category } from '@/types';
 import Link from 'next/link';
 
-// Custom Input component
-const Input = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
+// Local Input component to avoid conflicts
+const CategoriesInput = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     className={cn(
       'flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50',
@@ -33,15 +32,16 @@ const Input = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputEleme
   />
 );
 
+// Extended Category interface for UI purposes
+interface CategoryWithStats extends Category {
+  description?: string;
+  questionsCount?: number;
+  difficulty?: 'Easy' | 'Medium' | 'Hard' | 'Mixed';
+  color?: string;
+}
+
 interface CategoryCardProps {
-  category: {
-    id: string;
-    name: string;
-    description?: string;
-    questionsCount?: number;
-    difficulty?: 'Easy' | 'Medium' | 'Hard' | 'Mixed';
-    color?: string;
-  };
+  category: CategoryWithStats;
   userProgress?: {
     solved: number;
     total: number;
@@ -139,19 +139,28 @@ const CategoryCard = ({ category, userProgress }: CategoryCardProps) => {
 
 export default function CategoriesPage() {
   const { user } = useCurrentUser();
-  const { data: categories, isLoading } = useCategories();
+  const { data: categoriesData, isLoading } = useCategories();
   const [searchQuery, setSearchQuery] = useState('');
   
   const isAdmin = user?.role === UserRole.ADMIN || user?.role === UserRole.SUPERADMIN;
 
+  // Enhance categories with mock data for now - replace with real API
+  const categories: CategoryWithStats[] = (categoriesData || []).map(category => ({
+    ...category,
+    description: 'Explore problems in this category to improve your skills.',
+    questionsCount: Math.floor(Math.random() * 20) + 5,
+    difficulty: (['Easy', 'Medium', 'Hard', 'Mixed'] as const)[Math.floor(Math.random() * 4)],
+    color: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'][Math.floor(Math.random() * 5)],
+  }));
+
   // Filter categories based on search
-  const filteredCategories = categories?.filter(category =>
+  const filteredCategories = categories.filter(category =>
     category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     category.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  );
 
   // Mock progress data - replace with real API call
-  const getUserProgress = (categoryId: string) => {
+  const getUserProgress = () => {
     // This would come from useProgressByCategory hook
     const mockData = {
       solved: Math.floor(Math.random() * 10),
@@ -215,7 +224,7 @@ export default function CategoriesPage() {
           <div className="flex items-center space-x-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
+              <CategoriesInput
                 placeholder="Search categories..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -264,7 +273,7 @@ export default function CategoriesPage() {
               <Target className="h-5 w-5 text-purple-500" />
               <div>
                 <div className="text-2xl font-bold">
-                  {categories?.reduce((sum, cat) => sum + getUserProgress(cat.id).solved, 0) || 0}
+                  {categories?.reduce((sum) => sum + getUserProgress().solved, 0) || 0}
                 </div>
                 <div className="text-sm text-gray-600">Problems Solved</div>
               </div>
@@ -278,7 +287,7 @@ export default function CategoriesPage() {
               <Users className="h-5 w-5 text-orange-500" />
               <div>
                 <div className="text-2xl font-bold">
-                  {Math.round((categories?.reduce((sum, cat) => sum + getUserProgress(cat.id).percentage, 0) || 0) / (categories?.length || 1))}%
+                  {Math.round((categories?.reduce((sum) => sum + getUserProgress().percentage, 0) || 0) / (categories?.length || 1))}%
                 </div>
                 <div className="text-sm text-gray-600">Avg Progress</div>
               </div>
@@ -294,7 +303,7 @@ export default function CategoriesPage() {
             <CategoryCard
               key={category.id}
               category={category}
-              userProgress={getUserProgress(category.id)}
+              userProgress={getUserProgress()}
             />
           ))}
         </div>

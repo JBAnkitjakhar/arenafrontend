@@ -1,4 +1,4 @@
-// src/app/admin/users/page.tsx
+// src/app/admin/users/page.tsx somthing need to add at line 40
 
 'use client';
 
@@ -8,7 +8,6 @@ import { useRoleManagement } from '@/lib/super-admin';
 import { AdminRoute } from '@/components/auth/RouteGuard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { 
   Users, 
   Search, 
@@ -17,50 +16,15 @@ import {
   User as UserIcon,
   Calendar,
   Mail,
-  MoreVertical,
   Edit,
-  Ban,
-  Check,
-  X,
   AlertTriangle
 } from 'lucide-react';
 import { UserRole, User } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
+import Image from 'next/image';
 
-// Mock users data - will be replaced with real API
-const mockUsers: User[] = [
-  {
-    id: '1',
-    name: 'Ankit Jakhar',
-    email: 'ankitjakharabc@gmail.com',
-    role: UserRole.SUPERADMIN,
-    image: 'https://github.com/ankit-jakhar.png',
-    createdAt: '2024-01-01T00:00:00Z'
-  },
-  {
-    id: '2',
-    name: 'John Admin',
-    email: 'john@example.com',
-    role: UserRole.ADMIN,
-    createdAt: '2024-01-15T00:00:00Z'
-  },
-  {
-    id: '3',
-    name: 'Jane Student',
-    email: 'jane@example.com',
-    role: UserRole.USER,
-    createdAt: '2024-02-01T00:00:00Z'
-  },
-  {
-    id: '4',
-    name: 'Bob Developer',
-    email: 'bob@example.com',
-    role: UserRole.USER,
-    createdAt: '2024-02-10T00:00:00Z'
-  },
-];
-
-const Input = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
+// Local Input component to avoid conflicts
+const UsersInput = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     className={`flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 ${className}`}
     {...props}
@@ -73,9 +37,21 @@ const Badge = ({ children, className }: { children: React.ReactNode; className?:
   </span>
 );
 
+// TODO: Replace with real API hook for users
+// For now, we'll use an empty array and show appropriate empty states
+const useUsers = () => {
+  // This would be replaced with actual API call
+  return {
+    data: [] as User[],
+    isLoading: false,
+    error: null
+  };
+};
+
 export default function AdminUsersPage() {
   const { user: currentUser } = useCurrentUser();
   const { checkCanModifyUser, isProtectedSuperAdmin, SUPER_ADMIN_EMAIL } = useRoleManagement();
+  const { data: users = [], isLoading } = useUsers();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole | ''>('');
@@ -83,7 +59,7 @@ export default function AdminUsersPage() {
   const [newRole, setNewRole] = useState<UserRole>(UserRole.USER);
 
   // Filter users based on search and role
-  const filteredUsers = mockUsers.filter(user => {
+  const filteredUsers = users.filter((user: User) => {
     const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = !selectedRole || user.role === selectedRole;
@@ -91,11 +67,11 @@ export default function AdminUsersPage() {
   });
 
   const userStats = {
-    total: mockUsers.length,
+    total: users.length,
     byRole: {
-      [UserRole.SUPERADMIN]: mockUsers.filter(u => u.role === UserRole.SUPERADMIN).length,
-      [UserRole.ADMIN]: mockUsers.filter(u => u.role === UserRole.ADMIN).length,
-      [UserRole.USER]: mockUsers.filter(u => u.role === UserRole.USER).length,
+      [UserRole.SUPERADMIN]: users.filter((u: User) => u.role === UserRole.SUPERADMIN).length,
+      [UserRole.ADMIN]: users.filter((u: User) => u.role === UserRole.ADMIN).length,
+      [UserRole.USER]: users.filter((u: User) => u.role === UserRole.USER).length,
     }
   };
 
@@ -128,7 +104,9 @@ export default function AdminUsersPage() {
   };
 
   const handleRoleChange = (user: User) => {
-    const canModify = checkCanModifyUser(user.email, currentUser?.role!);
+    if (!currentUser?.role) return;
+    
+    const canModify = checkCanModifyUser(user.email, currentUser.role);
     
     if (!canModify.canChangeRole) {
       alert(canModify.reason || 'Cannot modify this user');
@@ -147,6 +125,24 @@ export default function AdminUsersPage() {
       setShowRoleModal(null);
     }
   };
+
+  if (isLoading) {
+    return (
+      <AdminRoute>
+        <div className="space-y-6">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+            <div className="space-y-4">
+              <div className="h-32 bg-gray-200 rounded"></div>
+              <div className="h-32 bg-gray-200 rounded"></div>
+              <div className="h-32 bg-gray-200 rounded"></div>
+            </div>
+          </div>
+        </div>
+      </AdminRoute>
+    );
+  }
 
   return (
     <AdminRoute>
@@ -226,7 +222,7 @@ export default function AdminUsersPage() {
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
+                  <UsersInput
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search by name or email..."
@@ -272,7 +268,7 @@ export default function AdminUsersPage() {
                 <h3 className="text-sm font-medium text-yellow-800">Super Admin Protection</h3>
                 <p className="text-sm text-yellow-700 mt-1">
                   The account <strong>{SUPER_ADMIN_EMAIL}</strong> is protected and cannot have its role changed. 
-                  Only super admins can modify other users' roles.
+                  Only super admins can modify other users roles.
                 </p>
               </div>
             </div>
@@ -287,94 +283,101 @@ export default function AdminUsersPage() {
           
           <CardContent>
             <div className="space-y-4">
-              {filteredUsers.map((user) => {
-                const canModify = checkCanModifyUser(user.email, currentUser?.role!);
-                const isProtected = isProtectedSuperAdmin(user.email);
-                
-                return (
-                  <div
-                    key={user.id}
-                    className={`border rounded-lg p-4 ${
-                      isProtected ? 'border-yellow-200 bg-yellow-50' : 'border-gray-200'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        {/* Avatar */}
-                        <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
-                          {user.image ? (
-                            <img 
-                              src={user.image} 
-                              alt={user.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <UserIcon className="h-6 w-6 text-gray-600" />
-                          )}
-                        </div>
-                        
-                        {/* User Info */}
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3">
-                            <h3 className="text-lg font-semibold text-gray-900">
-                              {user.name}
-                            </h3>
-                            {getRoleBadge(user.role)}
-                            {isProtected && (
-                              <Badge className="bg-yellow-100 text-yellow-800">
-                                <Crown className="h-3 w-3 mr-1" />
-                                Protected
-                              </Badge>
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
-                            <div className="flex items-center space-x-1">
-                              <Mail className="h-3 w-3" />
-                              <span>{user.email}</span>
-                            </div>
-                            
-                            <div className="flex items-center space-x-1">
-                              <Calendar className="h-3 w-3" />
-                              <span>
-                                Joined {formatDistanceToNow(new Date(user.createdAt), { addSuffix: true })}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Actions */}
-                      <div className="flex items-center space-x-2">
-                        {canModify.canChangeRole ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleRoleChange(user)}
-                            className="flex items-center space-x-1"
-                          >
-                            <Edit className="h-3 w-3" />
-                            <span>Change Role</span>
-                          </Button>
-                        ) : (
-                          <div className="text-xs text-gray-500 italic">
-                            {canModify.reason}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              
-              {filteredUsers.length === 0 && (
+              {filteredUsers.length === 0 ? (
                 <div className="text-center py-12">
                   <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No users found</h3>
                   <p className="text-gray-600">
-                    {searchQuery || selectedRole ? 'Try adjusting your filters.' : 'No users available.'}
+                    {users.length === 0 
+                      ? 'No users are registered yet.' 
+                      : searchQuery || selectedRole 
+                      ? 'Try adjusting your filters.' 
+                      : 'No users available.'
+                    }
                   </p>
                 </div>
+              ) : (
+                filteredUsers.map((user: User) => {
+                  const canModify = currentUser?.role ? checkCanModifyUser(user.email, currentUser.role) : { canChangeRole: false, reason: 'No permission' };
+                  const isProtected = isProtectedSuperAdmin(user.email);
+                  
+                  return (
+                    <div
+                      key={user.id}
+                      className={`border rounded-lg p-4 ${
+                        isProtected ? 'border-yellow-200 bg-yellow-50' : 'border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          {/* Avatar */}
+                          <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
+                            {user.image ? (
+                              <Image 
+                                src={user.image} 
+                                alt={user.name}
+                                width={48}
+                                height={48}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <UserIcon className="h-6 w-6 text-gray-600" />
+                            )}
+                          </div>
+                          
+                          {/* User Info */}
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3">
+                              <h3 className="text-lg font-semibold text-gray-900">
+                                {user.name}
+                              </h3>
+                              {getRoleBadge(user.role)}
+                              {isProtected && (
+                                <Badge className="bg-yellow-100 text-yellow-800">
+                                  <Crown className="h-3 w-3 mr-1" />
+                                  Protected
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
+                              <div className="flex items-center space-x-1">
+                                <Mail className="h-3 w-3" />
+                                <span>{user.email}</span>
+                              </div>
+                              
+                              <div className="flex items-center space-x-1">
+                                <Calendar className="h-3 w-3" />
+                                <span>
+                                  Joined {formatDistanceToNow(new Date(user.createdAt), { addSuffix: true })}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Actions */}
+                        <div className="flex items-center space-x-2">
+                          {canModify.canChangeRole ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRoleChange(user)}
+                              className="flex items-center space-x-1"
+                            >
+                              <Edit className="h-3 w-3" />
+                              <span>Change Role</span>
+                            </Button>
+                          ) : (
+                            <div className="text-xs text-gray-500 italic">
+                              {canModify.reason}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </CardContent>

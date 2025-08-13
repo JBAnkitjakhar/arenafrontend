@@ -1,4 +1,4 @@
-// src/app/admin/settings/page.tsx
+// src/app/admin/settings/page.tsx - Fixed version
 
 'use client';
 
@@ -6,7 +6,6 @@ import { useState } from 'react';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Settings,
@@ -27,8 +26,8 @@ import {
 import { cn } from '@/lib/utils';
 import { UserRole } from '@/types';
 
-// Custom Input component
-const Input = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
+// Local Input component to avoid conflicts
+const SettingsInput = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     className={cn(
       'flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50',
@@ -85,13 +84,38 @@ const ToggleSwitch = ({ enabled, onChange, label }: {
   </div>
 );
 
+// Settings type interface
+interface SystemSettings {
+  siteName: string;
+  siteDescription: string;
+  contactEmail: string;
+  maintenanceMode: boolean;
+  allowRegistration: boolean;
+  requireEmailVerification: boolean;
+  defaultUserRole: string;
+  maxUsersPerDay: number;
+  sessionTimeout: number;
+  passwordMinLength: number;
+  requireTwoFactor: boolean;
+  allowOAuth: boolean;
+  maxLoginAttempts: number;
+  rateLimitPerHour: number;
+  enableApiDocs: boolean;
+  apiTimeout: number;
+  maxFileSize: number;
+  emailNotifications: boolean;
+  systemAlerts: boolean;
+  userWelcomeEmail: boolean;
+  adminNotifications: boolean;
+}
+
 export default function AdminSettingsPage() {
   const { user } = useCurrentUser();
   const [activeTab, setActiveTab] = useState('general');
   const [unsavedChanges, setUnsavedChanges] = useState(false);
 
   // Mock settings state - replace with real API calls
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<SystemSettings>({
     // General Settings
     siteName: 'AlgoArena',
     siteDescription: 'Master Data Structures & Algorithms',
@@ -138,7 +162,7 @@ export default function AdminSettingsPage() {
     );
   }
 
-  const updateSetting = (key: string, value: any) => {
+  const updateSetting = <K extends keyof SystemSettings>(key: K, value: SystemSettings[K]) => {
     setSettings(prev => ({
       ...prev,
       [key]: value
@@ -225,7 +249,7 @@ export default function AdminSettingsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Site Name
                   </label>
-                  <Input
+                  <SettingsInput
                     value={settings.siteName}
                     onChange={(e) => updateSetting('siteName', e.target.value)}
                     placeholder="AlgoArena"
@@ -235,7 +259,7 @@ export default function AdminSettingsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Site Description
                   </label>
-                  <Input
+                  <SettingsInput
                     value={settings.siteDescription}
                     onChange={(e) => updateSetting('siteDescription', e.target.value)}
                     placeholder="Master Data Structures & Algorithms"
@@ -245,7 +269,7 @@ export default function AdminSettingsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Contact Email
                   </label>
-                  <Input
+                  <SettingsInput
                     type="email"
                     value={settings.contactEmail}
                     onChange={(e) => updateSetting('contactEmail', e.target.value)}
@@ -331,7 +355,7 @@ export default function AdminSettingsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Max New Users Per Day
                   </label>
-                  <Input
+                  <SettingsInput
                     type="number"
                     value={settings.maxUsersPerDay}
                     onChange={(e) => updateSetting('maxUsersPerDay', parseInt(e.target.value))}
@@ -370,7 +394,7 @@ export default function AdminSettingsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Session Timeout (hours)
                   </label>
-                  <Input
+                  <SettingsInput
                     type="number"
                     value={settings.sessionTimeout}
                     onChange={(e) => updateSetting('sessionTimeout', parseInt(e.target.value))}
@@ -382,7 +406,7 @@ export default function AdminSettingsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Minimum Password Length
                   </label>
-                  <Input
+                  <SettingsInput
                     type="number"
                     value={settings.passwordMinLength}
                     onChange={(e) => updateSetting('passwordMinLength', parseInt(e.target.value))}
@@ -394,7 +418,7 @@ export default function AdminSettingsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Max Login Attempts
                   </label>
-                  <Input
+                  <SettingsInput
                     type="number"
                     value={settings.maxLoginAttempts}
                     onChange={(e) => updateSetting('maxLoginAttempts', parseInt(e.target.value))}
@@ -454,7 +478,7 @@ export default function AdminSettingsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Rate Limit (requests per hour)
                   </label>
-                  <Input
+                  <SettingsInput
                     type="number"
                     value={settings.rateLimitPerHour}
                     onChange={(e) => updateSetting('rateLimitPerHour', parseInt(e.target.value))}
@@ -466,7 +490,7 @@ export default function AdminSettingsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     API Timeout (seconds)
                   </label>
-                  <Input
+                  <SettingsInput
                     type="number"
                     value={settings.apiTimeout}
                     onChange={(e) => updateSetting('apiTimeout', parseInt(e.target.value))}
@@ -492,7 +516,7 @@ export default function AdminSettingsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Max File Size (MB)
                   </label>
-                  <Input
+                  <SettingsInput
                     type="number"
                     value={settings.maxFileSize}
                     onChange={(e) => updateSetting('maxFileSize', parseInt(e.target.value))}

@@ -1,40 +1,39 @@
-// src/components/admin/QuestionForm.tsx
+// src/components/admin/QuestionForm.tsx - Fixed version
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCategories } from '@/hooks/useCategories';
 import { useCreateQuestion, useUpdateQuestion } from '@/hooks/useQuestions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { 
   Save, 
   Plus, 
   Trash2, 
-  Image, 
+  Image as ImageIcon, 
   Code, 
   AlertCircle,
   ArrowLeft,
-  Upload
 } from 'lucide-react';
 import { QuestionFormData, QuestionLevel, Question, CodeSnippet } from '@/types';
+import Image from 'next/image';
 
 interface QuestionFormProps {
   question?: Question; // For editing
   mode: 'create' | 'edit';
 }
 
-const Input = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
+// Local components to avoid conflicts
+const FormInput = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     className={`flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 ${className}`}
     {...props}
   />
 );
 
-const Textarea = ({ className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
+const FormTextarea = ({ className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
   <textarea
     className={`flex min-h-[80px] w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 ${className}`}
     {...props}
@@ -48,7 +47,7 @@ const PROGRAMMING_LANGUAGES = [
 
 export function QuestionForm({ question, mode }: QuestionFormProps) {
   const router = useRouter();
-  const { data: categories } = useCategories();
+  const { data: categories = [] } = useCategories();
   const createQuestion = useCreateQuestion();
   const updateQuestion = useUpdateQuestion();
 
@@ -103,15 +102,18 @@ export function QuestionForm({ question, mode }: QuestionFormProps) {
         await createQuestion.mutateAsync(formData);
         router.push('/admin/questions');
       } else if (question) {
-        await updateQuestion.mutateAsync({ id: question.id, data: formData });
+        await updateQuestion.mutateAsync({ questionId: question.id, data: formData });
         router.push(`/dsa/questions/${question.id}`);
       }
-    } catch (error) {
+    } catch {
       // Error handling is done in the hooks
     }
   };
 
-  const handleInputChange = (field: keyof QuestionFormData, value: any) => {
+  const handleInputChange = <K extends keyof QuestionFormData>(
+    field: K, 
+    value: QuestionFormData[K]
+  ) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Clear error when user starts typing
@@ -186,7 +188,7 @@ export function QuestionForm({ question, mode }: QuestionFormProps) {
               <label className="block text-sm font-medium text-gray-700">
                 Question Title *
               </label>
-              <Input
+              <FormInput
                 value={formData.title}
                 onChange={(e) => handleInputChange('title', e.target.value)}
                 placeholder="e.g., Two Sum Problem"
@@ -214,7 +216,7 @@ export function QuestionForm({ question, mode }: QuestionFormProps) {
                   }`}
                 >
                   <option value="">Select Category</option>
-                  {categories?.map((category) => (
+                  {categories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.name}
                     </option>
@@ -249,7 +251,7 @@ export function QuestionForm({ question, mode }: QuestionFormProps) {
               <label className="block text-sm font-medium text-gray-700">
                 Problem Statement *
               </label>
-              <Textarea
+              <FormTextarea
                 value={formData.statement}
                 onChange={(e) => handleInputChange('statement', e.target.value)}
                 placeholder="Describe the problem clearly with examples, constraints, and expected output..."
@@ -273,7 +275,7 @@ export function QuestionForm({ question, mode }: QuestionFormProps) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <Image className="h-5 w-5" />
+              <ImageIcon className="h-5 w-5" />
               <span>Images (Optional)</span>
             </CardTitle>
           </CardHeader>
@@ -283,7 +285,7 @@ export function QuestionForm({ question, mode }: QuestionFormProps) {
                 Add Image URL
               </label>
               <div className="flex space-x-2">
-                <Input
+                <FormInput
                   value={imageInput}
                   onChange={(e) => setImageInput(e.target.value)}
                   placeholder="https://example.com/image.png"
@@ -308,9 +310,11 @@ export function QuestionForm({ question, mode }: QuestionFormProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {formData.imageUrls.map((url, index) => (
                     <div key={index} className="relative group border rounded-lg p-2">
-                      <img
+                      <Image
                         src={url}
                         alt={`Question image ${index + 1}`}
+                        width={300}
+                        height={128}
                         className="w-full h-32 object-cover rounded"
                         onError={(e) => {
                           e.currentTarget.src = '/images/placeholder.png';
@@ -393,7 +397,7 @@ export function QuestionForm({ question, mode }: QuestionFormProps) {
                     <label className="block text-sm font-medium text-gray-700">
                       Description
                     </label>
-                    <Input
+                    <FormInput
                       value={currentCodeSnippet.description}
                       onChange={(e) => setCurrentCodeSnippet(prev => ({ ...prev, description: e.target.value }))}
                       placeholder="e.g., Function template"
@@ -405,7 +409,7 @@ export function QuestionForm({ question, mode }: QuestionFormProps) {
                   <label className="block text-sm font-medium text-gray-700">
                     Code Template
                   </label>
-                  <Textarea
+                  <FormTextarea
                     value={currentCodeSnippet.code}
                     onChange={(e) => setCurrentCodeSnippet(prev => ({ ...prev, code: e.target.value }))}
                     placeholder="Enter the code template..."

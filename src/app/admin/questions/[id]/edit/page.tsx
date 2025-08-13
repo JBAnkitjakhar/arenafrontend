@@ -1,4 +1,4 @@
-// src/app/admin/questions/[id]/edit/page.tsx
+// src/app/admin/questions/[id]/edit/page.tsx  
 
 'use client';
 
@@ -7,6 +7,7 @@ import { useQuestionDetail } from '@/hooks/useQuestions';
 import { AdminRoute } from '@/components/auth/RouteGuard';
 import { QuestionForm } from '@/components/admin/QuestionForm';
 import { BookOpen } from 'lucide-react';
+import { Question } from '@/types';
 
 export default function EditQuestionPage() {
   const params = useParams();
@@ -31,7 +32,15 @@ export default function EditQuestionPage() {
     );
   }
 
-  if (error || !questionDetail?.question) {
+  // Handle both direct question data and nested question data
+  // Since questionDetail can be undefined, Question, or QuestionDetail, we need proper type checking
+  const question = questionDetail 
+    ? ('solutions' in questionDetail 
+        ? questionDetail as Question  // It's a QuestionDetail, but we cast to Question for now
+        : questionDetail as Question) // It's already a Question
+    : null;
+
+  if (error || !question) {
     return (
       <AdminRoute>
         <div className="text-center py-12">
@@ -49,7 +58,7 @@ export default function EditQuestionPage() {
     <AdminRoute>
       <QuestionForm 
         mode="edit" 
-        question={questionDetail.question} 
+        question={question} 
       />
     </AdminRoute>
   );

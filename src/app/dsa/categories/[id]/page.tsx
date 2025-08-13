@@ -1,5 +1,4 @@
-// src/app/dsa/categories/[id]/page.tsx
-
+// src/app/dsa/categories/[id]/page.tsx  
 'use client';
 
 import { useState } from 'react';
@@ -7,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuestions } from '@/hooks/useQuestions';
 import { useCategoryProgress } from '@/hooks/useProgress';
 import { useCurrentUser } from '@/hooks/useAuth';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { QuestionCard } from '@/components/dsa/QuestionCard';
 import { 
@@ -19,9 +18,13 @@ import {
   BarChart3,
   CheckCircle
 } from 'lucide-react';
-import { cn, getDifficultyColor } from '@/lib/utils';
-import { QuestionLevel, UserRole } from '@/types';
-import Link from 'next/link';
+import { cn } from '@/lib/utils';
+import { QuestionLevel, UserRole, Question } from '@/types';
+
+// Extended Question type to include solved status
+interface QuestionWithProgress extends Question {
+  solved?: boolean;
+}
 
 export default function CategoryDetailPage() {
   const params = useParams();
@@ -40,10 +43,15 @@ export default function CategoryDetailPage() {
     level: levelFilter,
   });
   
-  const { data: progress, isLoading: progressLoading } = useCategoryProgress(categoryId);
+  const { isLoading: progressLoading } = useCategoryProgress(categoryId);
   
   const isAdmin = user?.role === UserRole.ADMIN || user?.role === UserRole.SUPERADMIN;
-  const questions = questionsData?.content || [];
+  
+  // Add mock solved status to questions - replace with real progress data
+  const questions: QuestionWithProgress[] = (questionsData?.content || []).map(question => ({
+    ...question,
+    solved: Math.random() > 0.7, // Mock solved status - replace with real progress data
+  }));
   
   // Mock category data - replace with real API call
   const category = {
@@ -342,7 +350,6 @@ export default function CategoryDetailPage() {
               <QuestionCard
                 key={question.id}
                 question={question}
-                showCategory={false}
               />
             ))}
           </div>

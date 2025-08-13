@@ -1,4 +1,4 @@
-// src/types/index.ts - Complete Types File
+// src/types/index.ts  
 
 // User Types
 export interface User {
@@ -22,7 +22,7 @@ export interface Question {
   title: string;
   statement: string;
   imageUrls?: string[];
-  imageFolderUrl?: string; // Backward compatibility
+  imageFolderUrl?: string;  
   codeSnippets?: CodeSnippet[];
   categoryId: string;
   categoryName: string;
@@ -50,15 +50,13 @@ export interface CodeSnippet {
   code: string;
   description?: string;
 }
-
-// Solution Types (ENHANCED with YouTube support)
 export interface Solution {
   id: string;
   questionId: string;
   questionTitle?: string;
   content: string;
   driveLink?: string;
-  youtubeLink?: string; // NEW: YouTube video link
+  youtubeLink?: string;  
   imageUrls?: string[];
   visualizerFileIds?: string[];
   codeSnippet?: CodeSnippet;
@@ -143,7 +141,7 @@ export interface PaginatedResponse<T> {
   content: T[];
   totalElements: number;
   totalPages: number;
-  number: number; // current page
+  number: number;  
   size: number;
   first: boolean;
   last: boolean;
@@ -156,9 +154,10 @@ export interface AuthUser {
   user: User;
 }
 
-// Form Types
+// Form Types - OAuth specific data structures
 export interface LoginFormData {
-  // OAuth only - no traditional login
+  provider: 'google' | 'github';
+  redirectUrl?: string;
 }
 
 export interface QuestionFormData {
@@ -173,7 +172,7 @@ export interface QuestionFormData {
 export interface SolutionFormData {
   content: string;
   driveLink?: string;
-  youtubeLink?: string; // NEW: YouTube video link
+  youtubeLink?: string;  
   imageUrls?: string[];
   visualizerFileIds?: string[];
   codeSnippet?: CodeSnippet;
@@ -260,7 +259,41 @@ export interface QuestionCounts {
   unsolved: number;
 }
 
-// Admin specific types
+// Admin Activity Types - Fixed to remove 'any'
+export interface UserRegisteredActivity {
+  type: 'user_registered';
+  data: {
+    userId: string;
+    userName: string;
+    userEmail: string;
+  };
+  timestamp: string;
+}
+
+export interface QuestionAddedActivity {
+  type: 'question_added';
+  data: {
+    questionId: string;
+    questionTitle: string;
+    createdBy: string;
+  };
+  timestamp: string;
+}
+
+export interface SolutionAddedActivity {
+  type: 'solution_added';
+  data: {
+    solutionId: string;
+    questionId: string;
+    questionTitle: string;
+    createdBy: string;
+  };
+  timestamp: string;
+}
+
+export type AdminActivity = UserRegisteredActivity | QuestionAddedActivity | SolutionAddedActivity;
+
+// Admin specific types - Fixed to remove 'any'
 export interface AdminStats {
   totalUsers: number;
   totalQuestions: number;
@@ -269,11 +302,7 @@ export interface AdminStats {
   usersByRole: {
     [role: string]: number;
   };
-  recentActivity: {
-    type: 'user_registered' | 'question_added' | 'solution_added';
-    data: any;
-    timestamp: string;
-  }[];
+  recentActivity: AdminActivity[];
 }
 
 // UI State types

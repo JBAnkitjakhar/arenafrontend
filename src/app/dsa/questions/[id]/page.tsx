@@ -1,4 +1,4 @@
-// src/app/dsa/questions/[id]/page.tsx
+// src/app/dsa/questions/[id]/page.tsx 
 
 'use client';
 
@@ -9,7 +9,6 @@ import { useSolutions } from '@/hooks/useSolutions';
 import { useApproaches } from '@/hooks/useApproaches';
 import { useQuestionProgress, useUpdateProgress } from '@/hooks/useProgress';
 import { useCurrentUser } from '@/hooks/useAuth';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { QuestionContent } from '@/components/dsa/QuestionContent';
@@ -26,7 +25,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { getDifficultyColor } from '@/lib/utils';
-import { UserRole } from '@/types';
+import { UserRole, Question } from '@/types';
 import Link from 'next/link';
 
 export default function QuestionDetailPage() {
@@ -35,7 +34,6 @@ export default function QuestionDetailPage() {
   const { user } = useCurrentUser();
   
   const [activeTab, setActiveTab] = useState('description');
-  const [showApproachEditor, setShowApproachEditor] = useState(false);
 
   // API calls
   const { data: questionDetail, isLoading } = useQuestionDetail(questionId);
@@ -45,8 +43,18 @@ export default function QuestionDetailPage() {
   const updateProgress = useUpdateProgress();
 
   const isAdmin = user?.role === UserRole.ADMIN || user?.role === UserRole.SUPERADMIN;
-  const question = questionDetail?.question;
-  const solved = progress?.solved || questionDetail?.solved || false;
+  
+  // Handle the questionDetail type properly
+  const question: Question | null = questionDetail 
+    ? ('solutions' in questionDetail 
+        ? questionDetail as Question  // It's a QuestionDetail, cast to Question for now
+        : questionDetail as Question) // It's already a Question
+    : null;
+    
+  // Handle progress data safely
+  const solved = (progress && typeof progress === 'object' && 'solved' in progress) 
+    ? (progress as { solved: boolean }).solved 
+    : false;
 
   const handleProgressToggle = () => {
     updateProgress.mutate({
@@ -201,7 +209,6 @@ export default function QuestionDetailPage() {
             questionId={questionId}
             onSuccess={() => {
               setActiveTab('approaches');
-              setShowApproachEditor(false);
             }}
           />
         </TabsContent>

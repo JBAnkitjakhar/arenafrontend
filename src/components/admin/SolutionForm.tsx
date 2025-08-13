@@ -1,20 +1,17 @@
-// src/components/admin/SolutionForm.tsx
+// src/components/admin/SolutionForm.tsx - Complete version
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCreateSolution, useUpdateSolution } from '@/hooks/useSolutions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { YouTubeInput } from '@/components/ui/YouTubeInput';
 import { 
   Save, 
   Plus, 
   Trash2, 
-  Image, 
+  Image as ImageIcon, 
   Code, 
   AlertCircle,
   ArrowLeft,
@@ -22,6 +19,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { SolutionFormData, Solution, CodeSnippet } from '@/types';
+import Image from 'next/image';
 
 interface SolutionFormProps {
   questionId: string;
@@ -30,14 +28,15 @@ interface SolutionFormProps {
   mode: 'create' | 'edit';
 }
 
-const Input = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
+// Local components to avoid conflicts
+const FormInput = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     className={`flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 ${className}`}
     {...props}
   />
 );
 
-const Textarea = ({ className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
+const FormTextarea = ({ className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
   <textarea
     className={`flex min-h-[80px] w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 ${className}`}
     {...props}
@@ -80,7 +79,10 @@ export function SolutionForm({ questionId, questionTitle, solution, mode }: Solu
       newErrors.content = 'Solution explanation must be at least 20 characters';
     }
 
-    // YouTube link validation will be handled by YouTubeInput component
+    // YouTube link validation
+    if (formData.youtubeLink && !formData.youtubeLink.includes('youtube.com') && !formData.youtubeLink.includes('youtu.be')) {
+      newErrors.youtubeLink = 'Please enter a valid YouTube URL';
+    }
     
     if (formData.driveLink && !formData.driveLink.includes('drive.google.com')) {
       newErrors.driveLink = 'Please enter a valid Google Drive link';
@@ -112,12 +114,15 @@ export function SolutionForm({ questionId, questionTitle, solution, mode }: Solu
         await updateSolution.mutateAsync({ id: solution.id, data: submitData });
         router.push(`/dsa/questions/${questionId}?tab=solutions`);
       }
-    } catch (error) {
+    } catch {
       // Error handling is done in the hooks
     }
   };
 
-  const handleInputChange = (field: keyof SolutionFormData, value: any) => {
+  const handleInputChange = <K extends keyof SolutionFormData>(
+    field: K, 
+    value: SolutionFormData[K]
+  ) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Clear error when user starts typing
@@ -174,7 +179,7 @@ export function SolutionForm({ questionId, questionTitle, solution, mode }: Solu
               <label className="block text-sm font-medium text-gray-700">
                 Explanation *
               </label>
-              <Textarea
+              <FormTextarea
                 value={formData.content}
                 onChange={(e) => handleInputChange('content', e.target.value)}
                 placeholder="Explain the solution approach, algorithm, time/space complexity, and key insights..."
@@ -203,14 +208,26 @@ export function SolutionForm({ questionId, questionTitle, solution, mode }: Solu
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <YouTubeInput
-              value={formData.youtubeLink}
-              onChange={(url) => handleInputChange('youtubeLink', url)}
-              placeholder="https://www.youtube.com/watch?v=..."
-              label="YouTube Video URL"
-              showPreview={true}
-              error={errors.youtubeLink}
-            />
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                YouTube Video URL
+              </label>
+              <FormInput
+                value={formData.youtubeLink || ''}
+                onChange={(e) => handleInputChange('youtubeLink', e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className={errors.youtubeLink ? 'border-red-500 focus:ring-red-500' : ''}
+              />
+              {errors.youtubeLink && (
+                <div className="flex items-center space-x-1 text-red-600 text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>{errors.youtubeLink}</span>
+                </div>
+              )}
+              <div className="text-xs text-gray-500">
+                Add a YouTube video explanation of the solution
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -227,7 +244,7 @@ export function SolutionForm({ questionId, questionTitle, solution, mode }: Solu
               <label className="block text-sm font-medium text-gray-700">
                 Google Drive Document/Folder URL
               </label>
-              <Input
+              <FormInput
                 value={formData.driveLink || ''}
                 onChange={(e) => handleInputChange('driveLink', e.target.value)}
                 placeholder="https://drive.google.com/..."
@@ -262,7 +279,7 @@ export function SolutionForm({ questionId, questionTitle, solution, mode }: Solu
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <Image className="h-5 w-5" />
+              <ImageIcon className="h-5 w-5" />
               <span>Images (Optional)</span>
             </CardTitle>
           </CardHeader>
@@ -272,10 +289,163 @@ export function SolutionForm({ questionId, questionTitle, solution, mode }: Solu
                 Add Image URL
               </label>
               <div className="flex space-x-2">
-                <Input
+                <FormInput
                   value={imageInput}
                   onChange={(e) => setImageInput(e.target.value)}
                   placeholder="https://example.com/diagram.png"
                   className="flex-1"
                 />
                 <Button
+                  type="button"
+                  onClick={addImageUrl}
+                  disabled={!imageInput.trim()}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Current Images */}
+            {formData.imageUrls && formData.imageUrls.length > 0 && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Current Images ({formData.imageUrls.length})
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {formData.imageUrls.map((url, index) => (
+                    <div key={index} className="relative group border rounded-lg p-2">
+                      <Image
+                        src={url}
+                        alt={`Solution image ${index + 1}`}
+                        width={300}
+                        height={128}
+                        className="w-full h-32 object-cover rounded"
+                        onError={(e) => {
+                          e.currentTarget.src = '/images/placeholder.png';
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => removeImageUrl(index)}
+                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                      <div className="text-xs text-gray-600 mt-1 truncate">
+                        {url}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Code Snippet */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Code className="h-5 w-5" />
+                <span>Code Solution (Optional)</span>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowCodeSnippet(!showCodeSnippet)}
+                className="flex items-center space-x-2"
+              >
+                {showCodeSnippet ? <Trash2 className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                <span>{showCodeSnippet ? 'Remove Code' : 'Add Code'}</span>
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          {showCodeSnippet && (
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Programming Language
+                  </label>
+                  <select
+                    value={codeSnippet.language}
+                    onChange={(e) => setCodeSnippet(prev => ({ ...prev, language: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
+                  >
+                    {PROGRAMMING_LANGUAGES.map((lang) => (
+                      <option key={lang} value={lang}>
+                        {lang.charAt(0).toUpperCase() + lang.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Description
+                  </label>
+                  <FormInput
+                    value={codeSnippet.description}
+                    onChange={(e) => setCodeSnippet(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="e.g., Optimal solution using two pointers"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Code Solution
+                </label>
+                <FormTextarea
+                  value={codeSnippet.code}
+                  onChange={(e) => setCodeSnippet(prev => ({ ...prev, code: e.target.value }))}
+                  placeholder="Enter your code solution here..."
+                  rows={12}
+                  className={`font-mono text-sm ${errors.codeSnippet ? 'border-red-500 focus:ring-red-500' : ''}`}
+                />
+                {errors.codeSnippet && (
+                  <div className="flex items-center space-x-1 text-red-600 text-sm">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>{errors.codeSnippet}</span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+
+        {/* Submit Button */}
+        <div className="flex items-center justify-between pt-6 border-t">
+          <div className="text-sm text-gray-600">
+            * Required fields
+          </div>
+          <div className="flex space-x-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.back()}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex items-center space-x-2"
+            >
+              <Save className="h-4 w-4" />
+              <span>
+                {isSubmitting 
+                  ? (mode === 'create' ? 'Creating...' : 'Updating...') 
+                  : (mode === 'create' ? 'Create Solution' : 'Update Solution')
+                }
+              </span>
+            </Button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}

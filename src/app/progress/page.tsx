@@ -1,10 +1,9 @@
-// src/app/progress/page.tsx
+// src/app/progress/page.tsx - Fixed version
 
 'use client';
 
 import { useState } from 'react';
 import { useProgressStats, useRecentProgress } from '@/hooks/useProgress';
-import { useCurrentUser } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,16 +19,34 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { getDifficultyColor } from '@/lib/utils';
+import { QuestionLevel } from '@/types';
 import Link from 'next/link';
 
+// Proper types for activity and stats
+interface RecentActivityItem {
+  id: string;
+  questionId: string;
+  questionTitle: string;
+  level: QuestionLevel; // Use proper enum instead of string
+  solvedAt: string;
+}
+
+interface ProgressStatistics {
+  totalSolved: number;
+  solvedByLevel: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
+  totalByLevel: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
+}
+
 interface RecentActivityProps {
-  activity: Array<{
-    id: string;
-    questionId: string;
-    questionTitle: string;
-    level: string;
-    solvedAt: string;
-  }>;
+  activity: RecentActivityItem[];
 }
 
 const RecentActivity = ({ activity }: RecentActivityProps) => {
@@ -161,17 +178,46 @@ const AchievementCard = ({ icon: Icon, title, description, progress, total, colo
 };
 
 export default function ProgressPage() {
-  const { user } = useCurrentUser();
   const { data: stats } = useProgressStats();
   const { data: recentActivity } = useRecentProgress();
   const [activeTab, setActiveTab] = useState('overview');
 
-  const achievements = stats ? [
+  // Type the stats properly and provide fallbacks
+  const typedStats: ProgressStatistics = stats && typeof stats === 'object' ? {
+    totalSolved: (stats as ProgressStatistics).totalSolved || 0,
+    solvedByLevel: {
+      easy: (stats as ProgressStatistics).solvedByLevel?.easy || 0,
+      medium: (stats as ProgressStatistics).solvedByLevel?.medium || 0,
+      hard: (stats as ProgressStatistics).solvedByLevel?.hard || 0,
+    },
+    totalByLevel: {
+      easy: (stats as ProgressStatistics).totalByLevel?.easy || 0,
+      medium: (stats as ProgressStatistics).totalByLevel?.medium || 0,
+      hard: (stats as ProgressStatistics).totalByLevel?.hard || 0,
+    }
+  } : {
+    totalSolved: 0,
+    solvedByLevel: { easy: 0, medium: 0, hard: 0 },
+    totalByLevel: { easy: 0, medium: 0, hard: 0 }
+  };
+
+  // Type the activity properly
+  const typedActivity: RecentActivityItem[] = Array.isArray(recentActivity) 
+    ? recentActivity.map((item: Partial<RecentActivityItem>) => ({
+        id: item.id || '',
+        questionId: item.questionId || '',
+        questionTitle: item.questionTitle || '',
+        level: (item.level as QuestionLevel) || QuestionLevel.EASY,
+        solvedAt: item.solvedAt || ''
+      }))
+    : [];
+
+  const achievements = [
     {
       icon: Target,
       title: 'Getting Started',
       description: 'Solve your first problem',
-      progress: Math.min(stats.totalSolved, 1),
+      progress: Math.min(typedStats.totalSolved, 1),
       total: 1,
       color: 'green' as const,
     },
@@ -179,7 +225,7 @@ export default function ProgressPage() {
       icon: TrendingUp,
       title: 'Problem Solver',
       description: 'Solve 10 problems',
-      progress: Math.min(stats.totalSolved, 10),
+      progress: Math.min(typedStats.totalSolved, 10),
       total: 10,
       color: 'blue' as const,
     },
@@ -187,7 +233,7 @@ export default function ProgressPage() {
       icon: Award,
       title: 'Dedicated Learner',
       description: 'Solve 50 problems',
-      progress: Math.min(stats.totalSolved, 50),
+      progress: Math.min(typedStats.totalSolved, 50),
       total: 50,
       color: 'purple' as const,
     },
@@ -195,27 +241,27 @@ export default function ProgressPage() {
       icon: CheckCircle,
       title: 'Easy Master',
       description: 'Solve all easy problems',
-      progress: stats.solvedByLevel.easy,
-      total: stats.totalByLevel.easy,
+      progress: typedStats.solvedByLevel.easy,
+      total: typedStats.totalByLevel.easy,
       color: 'green' as const,
     },
     {
       icon: Target,
       title: 'Medium Conqueror',
       description: 'Solve all medium problems',
-      progress: stats.solvedByLevel.medium,
-      total: stats.totalByLevel.medium,
+      progress: typedStats.solvedByLevel.medium,
+      total: typedStats.totalByLevel.medium,
       color: 'orange' as const,
     },
     {
       icon: Award,
       title: 'Hard Champion',
       description: 'Solve all hard problems',
-      progress: stats.solvedByLevel.hard,
-      total: stats.totalByLevel.hard,
+      progress: typedStats.solvedByLevel.hard,
+      total: typedStats.totalByLevel.hard,
       color: 'purple' as const,
     },
-  ] : [];
+  ];
 
   return (
     <div className="space-y-6">
@@ -282,7 +328,7 @@ export default function ProgressPage() {
 
         {/* Activity Tab */}
         <TabsContent value="activity" className="mt-6">
-          <RecentActivity activity={recentActivity || []} />
+          <RecentActivity activity={typedActivity} />
         </TabsContent>
       </Tabs>
     </div>

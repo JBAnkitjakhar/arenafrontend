@@ -8,7 +8,7 @@ import { queryKeys } from '@/lib/query-client';
 import { Approach, ApproachFormData } from '@/types';
 import { useCurrentUser } from './useAuth';
 
-// Get user's approaches for a question
+// Get approaches for a question by current user
 export function useApproaches(questionId: string) {
   const { user } = useCurrentUser();
   
@@ -16,6 +16,7 @@ export function useApproaches(questionId: string) {
     queryKey: queryKeys.approaches.byQuestion(questionId, user?.id || ''),
     queryFn: () => api.get<Approach[]>(`/dsa/questions/${questionId}/approaches`),
     enabled: !!questionId && !!user?.id,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }
 
@@ -28,24 +29,23 @@ export function useApproach(id: string) {
   });
 }
 
-// Get size usage for user on a question
-export function useApproachSizeUsage(questionId: string) {
+// Get approaches size usage for a question
+export function useApproachesSizeUsage(questionId: string) {
   const { user } = useCurrentUser();
   
   return useQuery({
     queryKey: queryKeys.approaches.sizeUsage(questionId, user?.id || ''),
     queryFn: () => api.get<{
-      totalUsed: number;
-      totalUsedKB: number;
-      remaining: number;
-      remainingKB: number;
-      maxAllowed: number;
-      maxAllowedKB: number;
-      usagePercentage: number;
-      approachCount: number;
-      maxApproaches: number;
-    }>(`/dsa/approaches/size-usage/${questionId}`),
+      totalApproaches: number;
+      totalSize: number;
+      averageSize: number;
+      largestApproach: {
+        id: string;
+        size: number;
+      };
+    }>(`/dsa/questions/${questionId}/approaches/size-usage`),
     enabled: !!questionId && !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
@@ -66,7 +66,7 @@ export function useCreateApproach() {
           (old) => old ? [...old, newApproach] : [newApproach]
         );
         
-        // Invalidate size usage
+        // Invalidate size usage cache
         queryClient.invalidateQueries({
           queryKey: queryKeys.approaches.sizeUsage(questionId, user.id)
         });
@@ -110,12 +110,12 @@ export function useUpdateApproach() {
         queryClient.setQueryData<Approach[]>(
           queryKeys.approaches.byQuestion(updatedApproach.questionId, user.id),
           (old) => 
-            old?.map(app => 
-              app.id === updatedApproach.id ? updatedApproach : app
-            ) || []
+            old?.map(approach => 
+              approach.id === updatedApproach.id ? updatedApproach : approach
+            )
         );
         
-        // Invalidate size usage
+        // Invalidate size usage cache
         queryClient.invalidateQueries({
           queryKey: queryKeys.approaches.sizeUsage(updatedApproach.questionId, user.id)
         });
@@ -147,23 +147,15 @@ export function useDeleteApproach() {
   return useMutation({
     mutationFn: (id: string) => api.delete(`/dsa/approaches/${id}`),
     onSuccess: (_, deletedId) => {
-      // Remove from approach detail cache
+      // Remove from detail cache
       queryClient.removeQueries({
         queryKey: queryKeys.approaches.detail(deletedId)
       });
       
-      // Remove from approaches lists
-      if (user?.id) {
-        queryClient.setQueriesData<Approach[]>(
-          { queryKey: queryKeys.approaches.byQuestion('', user.id) },
-          (old) => old?.filter(app => app.id !== deletedId) || []
-        );
-        
-        // Invalidate size usage for all questions
-        queryClient.invalidateQueries({
-          queryKey: ['approaches', 'size-usage']
-        });
-      }
+      // Invalidate all approaches queries to refresh lists
+      queryClient.invalidateQueries({
+        queryKey: ['approaches']
+      });
       
       dispatch(addToast({
         title: 'Success',
@@ -179,5 +171,18 @@ export function useDeleteApproach() {
         type: 'error',
       }));
     },
+  });
+}
+
+// Get all approaches by user (for profile/progress tracking)
+export function useUserApproaches(userId?: string) {
+  const { user: currentUser } = useCurrentUser();
+  const targetUserId = userId || currentUser?.id;
+  
+  return useQuery({
+    queryKey: ['approaches', 'user', targetUserId],
+    queryFn: () => api.get<Approach[]>(`/dsa/users/${targetUserId}/approaches`),
+    enabled: !!targetUserId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

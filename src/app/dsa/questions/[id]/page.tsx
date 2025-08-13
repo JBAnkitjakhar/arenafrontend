@@ -75,7 +75,7 @@ export default function QuestionDetailPage() {
       <div className="text-center py-12">
         <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Question not found</h2>
-        <p className="text-gray-600 mb-4">The question you're looking for doesn't exist.</p>
+        <p className="text-gray-600 mb-4">The question youre looking for doesnt exist.</p>
         <Link href="/dsa/questions">
           <Button variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />

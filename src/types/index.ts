@@ -1,4 +1,4 @@
-// src/types/index.ts
+// src/types/index.ts - Complete Types File
 
 // User Types
 export interface User {
@@ -51,20 +51,27 @@ export interface CodeSnippet {
   description?: string;
 }
 
-// Solution Types
+// Solution Types (ENHANCED with YouTube support)
 export interface Solution {
   id: string;
   questionId: string;
   questionTitle?: string;
   content: string;
   driveLink?: string;
-  imageUrls?: string[]; // NEW
-  visualizerFileIds?: string[]; // NEW
+  youtubeLink?: string; // NEW: YouTube video link
+  imageUrls?: string[];
+  visualizerFileIds?: string[];
   codeSnippet?: CodeSnippet;
   createdByName: string;
   createdById: string;
   createdAt: string;
   updatedAt: string;
+  
+  // Helper methods (will be added by utils)
+  hasValidDriveLink?: boolean;
+  hasValidYoutubeLink?: boolean;
+  youtubeVideoId?: string;
+  youtubeEmbedUrl?: string;
 }
 
 // Approach Types  
@@ -166,6 +173,7 @@ export interface QuestionFormData {
 export interface SolutionFormData {
   content: string;
   driveLink?: string;
+  youtubeLink?: string; // NEW: YouTube video link
   imageUrls?: string[];
   visualizerFileIds?: string[];
   codeSnippet?: CodeSnippet;
@@ -175,4 +183,129 @@ export interface ApproachFormData {
   textContent: string;
   codeContent?: string;
   codeLanguage: string;
+}
+
+export interface CategoryFormData {
+  name: string;
+}
+
+// YouTube specific types
+export interface YouTubeValidationResponse {
+  valid: boolean;
+  videoId?: string;
+  embedUrl?: string;
+  error?: string;
+}
+
+export interface YouTubeVideoInfo {
+  videoId: string;
+  title?: string;
+  thumbnail?: string;
+  duration?: string;
+  embedUrl: string;
+}
+
+// Progress and Statistics Types
+export interface ProgressStats {
+  totalQuestions: number;
+  solvedQuestions: number;
+  solvedByLevel: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
+  recentActivity: {
+    questionId: string;
+    questionTitle: string;
+    solvedAt: string;
+  }[];
+  streakDays: number;
+  progressPercentage: number;
+}
+
+export interface CategoryProgress {
+  categoryId: string;
+  categoryName: string;
+  totalQuestions: number;
+  solvedQuestions: number;
+  progressPercentage: number;
+  solvedByLevel: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
+}
+
+// Question listing and filtering types
+export interface QuestionFilters {
+  page?: number;
+  size?: number;
+  category?: string;
+  level?: string;
+  search?: string;
+  solved?: boolean;
+}
+
+export interface QuestionCounts {
+  total: number;
+  byLevel: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
+  byCategory: {
+    [categoryId: string]: number;
+  };
+  solved: number;
+  unsolved: number;
+}
+
+// Admin specific types
+export interface AdminStats {
+  totalUsers: number;
+  totalQuestions: number;
+  totalSolutions: number;
+  totalApproaches: number;
+  usersByRole: {
+    [role: string]: number;
+  };
+  recentActivity: {
+    type: 'user_registered' | 'question_added' | 'solution_added';
+    data: any;
+    timestamp: string;
+  }[];
+}
+
+// UI State types
+export interface UIState {
+  sidebarOpen: boolean;
+  mobileMenuOpen: boolean;
+  theme: 'light' | 'dark';
+  toasts: Toast[];
+}
+
+export interface Toast {
+  id: string;
+  title: string;
+  description?: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  duration?: number;
+}
+
+// File upload types
+export interface FileUploadResponse {
+  url: string;
+  publicId?: string;
+  size: number;
+  format: string;
+}
+
+// Pagination helper type
+export interface PaginationInfo {
+  page: number;
+  totalPages: number;
+  totalElements: number;
+  size: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
 }

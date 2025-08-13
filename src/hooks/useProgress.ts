@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppDispatch } from '@/store';
 import { addToast } from '@/store/slices/uiSlice';
 import { updateQuestionProgress } from '@/store/slices/questionsSlice';
-import { progressApi } from '@/lib/api/client';
+import { api } from '@/lib/api/client';
 import { queryKeys } from '@/lib/query-client';
 import { UserProgress } from '@/types';
 import { useCurrentUser } from './useAuth';
@@ -19,7 +19,8 @@ interface ApiError {
   message?: string;
 }
 
-interface ProgressResponse extends UserProgress {
+interface ProgressResponse {
+  solved: boolean;
   solvedAt?: string;
 }
 
@@ -29,7 +30,10 @@ export function useQuestionProgress(questionId: string) {
   
   return useQuery({
     queryKey: queryKeys.progress.byQuestion(questionId, user?.id || ''),
-    queryFn: () => progressApi.getQuestionProgress(questionId),
+    queryFn: async (): Promise<UserProgress> => {
+      const response = await api.get<UserProgress>(`/dsa/progress/question/${questionId}`);
+      return response;
+    },
     enabled: !!questionId && !!user?.id,
   });
 }
@@ -40,7 +44,20 @@ export function useProgressStats() {
   
   return useQuery({
     queryKey: queryKeys.progress.stats(user?.id || ''),
-    queryFn: () => progressApi.getUserStats(),
+    queryFn: async () => {
+      const response = await api.get<{
+        totalSolved: number;
+        totalQuestions: number;
+        solvedByLevel: {
+          easy: number;
+          medium: number;
+          hard: number;
+        };
+        recentSolved: number;
+        streak: number;
+      }>('/dsa/progress/stats');
+      return response;
+    },
     enabled: !!user?.id,
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
@@ -52,7 +69,15 @@ export function useRecentProgress() {
   
   return useQuery({
     queryKey: queryKeys.progress.recent(user?.id || ''),
-    queryFn: () => progressApi.getUserRecent(),
+    queryFn: async () => {
+      const response = await api.get<Array<{
+        questionId: string;
+        questionTitle: string;
+        solved: boolean;
+        solvedAt: string;
+      }>>('/dsa/progress/recent');
+      return response;
+    },
     enabled: !!user?.id,
   });
 }
@@ -63,7 +88,19 @@ export function useCategoryProgress(categoryId: string) {
   
   return useQuery({
     queryKey: queryKeys.progress.byCategory(categoryId, user?.id || ''),
-    queryFn: () => progressApi.getCategoryProgress(categoryId),
+    queryFn: async () => {
+      const response = await api.get<{
+        totalQuestions: number;
+        solvedQuestions: number;
+        progressPercentage: number;
+        solvedByLevel: {
+          easy: number;
+          medium: number;
+          hard: number;
+        };
+      }>(`/dsa/progress/category/${categoryId}`);
+      return response;
+    },
     enabled: !!categoryId && !!user?.id,
   });
 }
@@ -75,11 +112,11 @@ export function useUpdateProgress() {
   const { user } = useCurrentUser();
 
   return useMutation({
-    mutationFn: ({ questionId, solved }: { questionId: string; solved: boolean }) =>
-      progressApi.updateQuestionProgress(questionId, { solved }),
-    onSuccess: (updatedProgress: unknown, { questionId, solved }) => {
-      const progressData = updatedProgress as ProgressResponse;
-      
+    mutationFn: async ({ questionId, solved }: { questionId: string; solved: boolean }): Promise<ProgressResponse> => {
+      const response = await api.post<ProgressResponse>(`/dsa/progress/question/${questionId}`, { solved });
+      return response;
+    },
+    onSuccess: (progressData: ProgressResponse, { questionId, solved }) => {
       // Update progress cache
       if (user?.id) {
         queryClient.setQueryData(
@@ -92,7 +129,7 @@ export function useUpdateProgress() {
       dispatch(updateQuestionProgress({
         questionId,
         solved,
-        solvedAt: progressData?.solvedAt || null,
+        solvedAt: progressData?.solvedAt || undefined,
       }));
       
       // Invalidate related caches

@@ -1,5 +1,4 @@
 // src/components/dsa/SolutionsList.tsx
-// we will match that file later becuase new file is not matching completely
 
 'use client';
 
@@ -10,15 +9,15 @@ import { Solution } from '@/types';
 import { 
   Code, 
   ExternalLink, 
-  Image, 
+  ImageIcon, 
   Play, 
   Plus,
   ChevronDown,
   ChevronUp,
-  FileText
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface SolutionsListProps {
   questionId: string;
@@ -56,7 +55,7 @@ export function SolutionsList({ questionId, solutions, isAdmin }: SolutionsListP
           <Code className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No solutions yet</h3>
           <p className="text-gray-600 mb-4">
-            Solutions for this question haven't been added yet.
+            Solutions for this question havent been added yet.
           </p>
           {isAdmin && (
             <Link href={`/admin/questions/${questionId}/solutions/create`}>
@@ -98,7 +97,7 @@ export function SolutionsList({ questionId, solutions, isAdmin }: SolutionsListP
                 <div className="flex items-center space-x-2 text-sm text-gray-500">
                   {solution.imageUrls && solution.imageUrls.length > 0 && (
                     <span className="flex items-center space-x-1">
-                      <Image className="h-4 w-4" />
+                      <ImageIcon className="h-4 w-4" />
                       <span>{solution.imageUrls.length}</span>
                     </span>
                   )}
@@ -176,7 +175,7 @@ export function SolutionsList({ questionId, solutions, isAdmin }: SolutionsListP
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium text-gray-900 flex items-center space-x-2">
-                      <Image className="h-4 w-4" />
+                      <ImageIcon className="h-4 w-4" />
                       <span>Images ({solution.imageUrls.length})</span>
                     </h4>
                     <Button
@@ -192,12 +191,16 @@ export function SolutionsList({ questionId, solutions, isAdmin }: SolutionsListP
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {solution.imageUrls.map((imageUrl, imgIndex) => (
                         <div key={imgIndex} className="border rounded-lg overflow-hidden">
-                          <img
-                            src={imageUrl}
-                            alt={`Solution image ${imgIndex + 1}`}
-                            className="w-full h-48 object-cover hover:scale-105 transition-transform cursor-pointer"
-                            onClick={() => window.open(imageUrl, '_blank')}
-                          />
+                          <div className="relative w-full h-48">
+                            <Image
+                              src={imageUrl}
+                              alt={`Solution image ${imgIndex + 1}`}
+                              fill
+                              className="object-cover hover:scale-105 transition-transform cursor-pointer"
+                              onClick={() => window.open(imageUrl, '_blank')}
+                              unoptimized // For external images
+                            />
+                          </div>
                         </div>
                       ))}
                     </div>

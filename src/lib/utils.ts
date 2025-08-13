@@ -2,7 +2,7 @@
 
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { QuestionLevel } from "@/types";
+import { QuestionLevel, User, UserRole } from "@/types";
 
 // Tailwind class merger
 export function cn(...inputs: ClassValue[]) {
@@ -131,23 +131,37 @@ export function validateHtmlFile(file: File): {
   return { isValid: true };
 }
 
+// API Error interface for consistent error handling
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string;
+      error?: string;
+    };
+  };
+  message?: string;
+}
+
 // Extract error message from API response
-export function getErrorMessage(error: any): string {
+export function getErrorMessage(error: ApiError | string | unknown): string {
   if (typeof error === 'string') return error;
-  if (error?.response?.data?.message) return error.response.data.message;
-  if (error?.response?.data?.error) return error.response.data.error;
-  if (error?.message) return error.message;
+  
+  const apiError = error as ApiError;
+  if (apiError?.response?.data?.message) return apiError.response.data.message;
+  if (apiError?.response?.data?.error) return apiError.response.data.error;
+  if (apiError?.message) return apiError.message;
+  
   return 'An unexpected error occurred';
 }
 
 // Check if user has admin role
-export function isAdmin(user: any): boolean {
-  return user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
+export function isAdmin(user: User | null | undefined): boolean {
+  return user?.role === UserRole.ADMIN || user?.role === UserRole.SUPERADMIN;
 }
 
 // Check if user has superadmin role
-export function isSuperAdmin(user: any): boolean {
-  return user?.role === 'SUPERADMIN';
+export function isSuperAdmin(user: User | null | undefined): boolean {
+  return user?.role === UserRole.SUPERADMIN;
 }
 
 // Generate random ID (for temporary use)
@@ -155,8 +169,8 @@ export function generateId(): string {
   return Math.random().toString(36).substring(2, 15);
 }
 
-// Debounce function
-export function debounce<T extends (...args: any[]) => any>(
+// Debounce function with proper typing
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
@@ -164,6 +178,6 @@ export function debounce<T extends (...args: any[]) => any>(
   
   return (...args: Parameters<T>) => {
     clearTimeout(timeout);
-    timeout = setTimeout(() => func.apply(null, args), wait);
+    timeout = setTimeout(() => func(...args), wait);
   };
 }

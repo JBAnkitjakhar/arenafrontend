@@ -12,17 +12,23 @@ import {
   User, 
   BookOpen, 
   CheckCircle,
-  ExternalLink 
+  ExternalLink,
+  ImageIcon
 } from 'lucide-react';
 
+// Extended Question interface to include progress information
+interface QuestionWithProgress extends Question {
+  solved?: boolean;
+  solvedAt?: string;
+}
+
 interface QuestionCardProps {
-  question: Question;
+  question: QuestionWithProgress;
 }
 
 export function QuestionCard({ question }: QuestionCardProps) {
-  // Type assertion for solved status (will be properly typed later)
-  const solved = (question as any).solved || false;
-  const solvedAt = (question as any).solvedAt;
+  const solved = question.solved || false;
+  const solvedAt = question.solvedAt;
 
   return (
     <Card className="hover:shadow-md transition-shadow">
@@ -83,8 +89,9 @@ export function QuestionCard({ question }: QuestionCardProps) {
 
             {/* Images indicator */}
             {question.imageUrls && question.imageUrls.length > 0 && (
-              <div className="text-xs text-blue-600">
-                📷 {question.imageUrls.length} image{question.imageUrls.length > 1 ? 's' : ''}
+              <div className="flex items-center space-x-1 text-xs text-blue-600">
+                <ImageIcon className="h-3 w-3" />
+                <span>{question.imageUrls.length} image{question.imageUrls.length > 1 ? 's' : ''}</span>
               </div>
             )}
           </div>

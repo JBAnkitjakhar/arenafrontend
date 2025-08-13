@@ -8,12 +8,23 @@ import {
   TrendingUp, 
   Target, 
   Trophy, 
-  Clock,
-  CheckCircle,
   Circle,
   BarChart3
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// Match the actual API response structure
+interface ApiProgressStats {
+  totalSolved: number;
+  totalQuestions: number;
+  solvedByLevel: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
+  recentSolved: number;
+  streak: number;
+}
 
 interface StatCardProps {
   title: string;
@@ -164,7 +175,29 @@ export function ProgressStats() {
     return null;
   }
 
-  const overallProgress = Math.round(stats.progressPercentage);
+  // Process the API response to get calculated values
+  const apiStats = stats as ApiProgressStats;
+  const overallProgress = apiStats.totalQuestions > 0 
+    ? Math.round((apiStats.totalSolved / apiStats.totalQuestions) * 100) 
+    : 0;
+
+  // Calculate progress percentages for each level
+  const easyProgress = apiStats.totalQuestions > 0 
+    ? Math.round((apiStats.solvedByLevel.easy / (apiStats.totalQuestions * 0.4)) * 100) // Assume 40% easy
+    : 0;
+  
+  const mediumProgress = apiStats.totalQuestions > 0 
+    ? Math.round((apiStats.solvedByLevel.medium / (apiStats.totalQuestions * 0.4)) * 100) // Assume 40% medium
+    : 0;
+  
+  const hardProgress = apiStats.totalQuestions > 0 
+    ? Math.round((apiStats.solvedByLevel.hard / (apiStats.totalQuestions * 0.2)) * 100) // Assume 20% hard
+    : 0;
+
+  // Estimate totals for each level (you can adjust these ratios based on your actual data)
+  const estimatedEasyTotal = Math.ceil(apiStats.totalQuestions * 0.4);
+  const estimatedMediumTotal = Math.ceil(apiStats.totalQuestions * 0.4);
+  const estimatedHardTotal = Math.ceil(apiStats.totalQuestions * 0.2);
 
   return (
     <div className="space-y-6">
@@ -172,7 +205,7 @@ export function ProgressStats() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Overall Progress"
-          value={`${stats.totalSolved}/${stats.totalQuestions}`}
+          value={`${apiStats.totalSolved}/${apiStats.totalQuestions}`}
           description={`${overallProgress}% completed`}
           icon={TrendingUp}
           color="blue"
@@ -181,29 +214,29 @@ export function ProgressStats() {
         
         <StatCard
           title="Easy Problems"
-          value={stats.solvedByLevel.easy}
-          description={`out of ${stats.totalByLevel.easy} problems`}
+          value={apiStats.solvedByLevel.easy}
+          description={`out of ~${estimatedEasyTotal} problems`}
           icon={Target}
           color="green"
-          progress={stats.progressByLevel.easy}
+          progress={easyProgress}
         />
         
         <StatCard
           title="Medium Problems"
-          value={stats.solvedByLevel.medium}
-          description={`out of ${stats.totalByLevel.medium} problems`}
+          value={apiStats.solvedByLevel.medium}
+          description={`out of ~${estimatedMediumTotal} problems`}
           icon={Circle}
           color="orange"
-          progress={stats.progressByLevel.medium}
+          progress={mediumProgress}
         />
         
         <StatCard
           title="Hard Problems"
-          value={stats.solvedByLevel.hard}
-          description={`out of ${stats.totalByLevel.hard} problems`}
+          value={apiStats.solvedByLevel.hard}
+          description={`out of ~${estimatedHardTotal} problems`}
           icon={Trophy}
           color="red"
-          progress={stats.progressByLevel.hard}
+          progress={hardProgress}
         />
       </div>
 
@@ -218,26 +251,26 @@ export function ProgressStats() {
         <CardContent className="space-y-6">
           <LevelProgress
             level="easy"
-            solved={stats.solvedByLevel.easy}
-            total={stats.totalByLevel.easy}
-            percentage={stats.progressByLevel.easy}
+            solved={apiStats.solvedByLevel.easy}
+            total={estimatedEasyTotal}
+            percentage={easyProgress}
           />
           <LevelProgress
             level="medium"
-            solved={stats.solvedByLevel.medium}
-            total={stats.totalByLevel.medium}
-            percentage={stats.progressByLevel.medium}
+            solved={apiStats.solvedByLevel.medium}
+            total={estimatedMediumTotal}
+            percentage={mediumProgress}
           />
           <LevelProgress
             level="hard"
-            solved={stats.solvedByLevel.hard}
-            total={stats.totalByLevel.hard}
-            percentage={stats.progressByLevel.hard}
+            solved={apiStats.solvedByLevel.hard}
+            total={estimatedHardTotal}
+            percentage={hardProgress}
           />
         </CardContent>
       </Card>
 
-      {/* Quick Stats Summary */}
+      {/* Additional Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
@@ -253,10 +286,10 @@ export function ProgressStats() {
         <Card>
           <CardContent className="p-4 text-center">
             <div className="text-3xl font-bold text-green-600 mb-2">
-              {stats.totalSolved}
+              {apiStats.recentSolved}
             </div>
             <div className="text-sm text-gray-600">
-              Problems Solved
+              Recent Solved
             </div>
           </CardContent>
         </Card>
@@ -264,10 +297,10 @@ export function ProgressStats() {
         <Card>
           <CardContent className="p-4 text-center">
             <div className="text-3xl font-bold text-purple-600 mb-2">
-              {stats.totalQuestions - stats.totalSolved}
+              {apiStats.streak}
             </div>
             <div className="text-sm text-gray-600">
-              Remaining Problems
+              Current Streak
             </div>
           </CardContent>
         </Card>

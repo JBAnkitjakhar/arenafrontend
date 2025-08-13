@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef } from 'react';
 import { Editor, OnChange, OnMount } from '@monaco-editor/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,24 @@ import {
   Copy,
   FileText
 } from 'lucide-react';
+
+// Monaco Editor types
+interface MonacoEditor {
+  updateOptions: (options: Record<string, unknown>) => void;
+  addCommand: (keybinding: number, handler: () => void) => void;
+  getAction: (actionId: string) => { run: () => void };
+  getContainerDomNode: () => HTMLElement;
+}
+
+interface Monaco {
+  KeyMod: {
+    CtrlCmd: number;
+  };
+  KeyCode: {
+    Enter: number;
+    KeyS: number;
+  };
+}
 
 interface CodeEditorProps {
   language: string;
@@ -132,7 +150,7 @@ class Program {
 }`,
     monacoLanguage: 'kotlin'
   }
-};
+} as const;
 
 export function CodeEditor({
   language,
@@ -144,13 +162,14 @@ export function CodeEditor({
   supportedLanguages,
   theme = 'vs-dark'
 }: CodeEditorProps) {
-  const editorRef = useRef<any>(null);
+  const editorRef = useRef<MonacoEditor | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentLanguageConfig = LANGUAGE_CONFIGS[language as keyof typeof LANGUAGE_CONFIGS] || LANGUAGE_CONFIGS.javascript;
 
   const handleEditorDidMount: OnMount = (editor, monaco) => {
-    editorRef.current = editor;
+    // Type assertion to our custom interface
+    editorRef.current = editor as MonacoEditor;
     
     // Configure editor options
     editor.updateOptions({
@@ -166,15 +185,17 @@ export function CodeEditor({
       bracketPairColorization: { enabled: true }
     });
 
-    // Add keyboard shortcuts
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+    // Add keyboard shortcuts with proper typing
+    const monacoTyped = monaco as Monaco;
+    
+    editor.addCommand(monacoTyped.KeyMod.CtrlCmd | monacoTyped.KeyCode.Enter, () => {
       if (!isExecuting) {
         onExecute();
       }
     });
 
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, (e: any) => {
-      e.preventDefault();
+    editor.addCommand(monacoTyped.KeyMod.CtrlCmd | monacoTyped.KeyCode.KeyS, () => {
+      // Prevent default browser save behavior
       downloadCode();
     });
   };

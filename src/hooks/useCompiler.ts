@@ -50,7 +50,7 @@ export function useRuntimes() {
   
   return useQuery({
     queryKey: queryKeys.compiler.runtimes,
-    queryFn: async () => {
+    queryFn: async (): Promise<RuntimeData[]> => {
       dispatch(setRuntimesLoading(true));
       try {
         const response = await api.get<{
@@ -74,8 +74,9 @@ export function useRuntimes() {
         } else {
           throw new Error('Failed to fetch runtimes');
         }
-      } catch (error: ApiError) {
-        const message = error?.response?.data?.message || 'Failed to fetch runtimes';
+      } catch (error: unknown) {
+        const apiError = error as ApiError;
+        const message = apiError?.response?.data?.message || 'Failed to fetch runtimes';
         dispatch(setRuntimesError(message));
         throw error;
       }
@@ -89,7 +90,7 @@ export function useRuntimes() {
 export function useLanguages() {
   return useQuery({
     queryKey: queryKeys.compiler.languages,
-    queryFn: async () => {
+    queryFn: async (): Promise<string[]> => {
       try {
         const response = await api.get<{
           success: boolean;
@@ -129,7 +130,7 @@ export function useExecuteCode() {
   const dispatch = useAppDispatch();
   
   return useMutation({
-    mutationFn: async (request: ExecutionRequest) => {
+    mutationFn: async (request: ExecutionRequest): Promise<ExecutionResponse> => {
       dispatch(setExecuting(true));
       
       try {
@@ -144,14 +145,15 @@ export function useExecuteCode() {
         } else {
           throw new Error(response.message || 'Execution failed');
         }
-      } catch (error: ApiError) {
+      } catch (error: unknown) {
+        const apiError = error as ApiError;
         // Handle different types of errors
-        if (error?.response?.status === 408) {
+        if (apiError?.response?.status === 408) {
           throw new Error('Code execution timed out (30s limit exceeded)');
-        } else if (error?.response?.status === 429) {
+        } else if (apiError?.response?.status === 429) {
           throw new Error('Too many requests. Please wait before executing again.');
-        } else if (error?.response?.data?.message) {
-          throw new Error(error.response.data.message);
+        } else if (apiError?.response?.data?.message) {
+          throw new Error(apiError.response.data.message);
         } else {
           throw new Error('Code execution failed. Please try again.');
         }
@@ -176,8 +178,9 @@ export function useExecuteCode() {
         }));
       }
     },
-    onError: (error: ApiError) => {
-      const message = error?.message || 'Code execution failed';
+    onError: (error: unknown) => {
+      const apiError = error as ApiError;
+      const message = apiError?.message || 'Code execution failed';
       dispatch(setExecutionError(message));
       
       dispatch(addToast({

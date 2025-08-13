@@ -22,27 +22,38 @@ import { getDifficultyColor } from '@/lib/utils';
 import { QuestionLevel } from '@/types';
 import Link from 'next/link';
 
+// Match the actual API response structure
+interface ApiProgressStats {
+  totalSolved: number;
+  totalQuestions: number;
+  solvedByLevel: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
+  recentSolved: number;
+  streak: number;
+}
+
 // Proper types for activity and stats
 interface RecentActivityItem {
   id: string;
   questionId: string;
   questionTitle: string;
-  level: QuestionLevel; // Use proper enum instead of string
+  level: QuestionLevel;
   solvedAt: string;
 }
 
-interface ProgressStatistics {
+interface ProcessedStats {
   totalSolved: number;
   solvedByLevel: {
     easy: number;
     medium: number;
     hard: number;
   };
-  totalByLevel: {
-    easy: number;
-    medium: number;
-    hard: number;
-  };
+  totalQuestions: number;
+  recentSolved: number;
+  streak: number;
 }
 
 interface RecentActivityProps {
@@ -144,7 +155,7 @@ const AchievementCard = ({ icon: Icon, title, description, progress, total, colo
   };
 
   const percentage = total > 0 ? (progress / total) * 100 : 0;
-  const isCompleted = progress >= total;
+  const isCompleted = progress >= total && total > 0;
 
   return (
     <Card className={isCompleted ? 'ring-2 ring-yellow-400 bg-yellow-50' : ''}>
@@ -182,42 +193,53 @@ export default function ProgressPage() {
   const { data: recentActivity } = useRecentProgress();
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Type the stats properly and provide fallbacks
-  const typedStats: ProgressStatistics = stats && typeof stats === 'object' ? {
-    totalSolved: (stats as ProgressStatistics).totalSolved || 0,
-    solvedByLevel: {
-      easy: (stats as ProgressStatistics).solvedByLevel?.easy || 0,
-      medium: (stats as ProgressStatistics).solvedByLevel?.medium || 0,
-      hard: (stats as ProgressStatistics).solvedByLevel?.hard || 0,
-    },
-    totalByLevel: {
-      easy: (stats as ProgressStatistics).totalByLevel?.easy || 0,
-      medium: (stats as ProgressStatistics).totalByLevel?.medium || 0,
-      hard: (stats as ProgressStatistics).totalByLevel?.hard || 0,
+  // Process the stats to match our expected structure
+  const processedStats: ProcessedStats = (() => {
+    if (!stats || typeof stats !== 'object') {
+      return {
+        totalSolved: 0,
+        solvedByLevel: { easy: 0, medium: 0, hard: 0 },
+        totalQuestions: 0,
+        recentSolved: 0,
+        streak: 0
+      };
     }
-  } : {
-    totalSolved: 0,
-    solvedByLevel: { easy: 0, medium: 0, hard: 0 },
-    totalByLevel: { easy: 0, medium: 0, hard: 0 }
-  };
+
+    const apiStats = stats as ApiProgressStats;
+    return {
+      totalSolved: apiStats.totalSolved || 0,
+      solvedByLevel: {
+        easy: apiStats.solvedByLevel?.easy || 0,
+        medium: apiStats.solvedByLevel?.medium || 0,
+        hard: apiStats.solvedByLevel?.hard || 0,
+      },
+      totalQuestions: apiStats.totalQuestions || 0,
+      recentSolved: apiStats.recentSolved || 0,
+      streak: apiStats.streak || 0
+    };
+  })();
 
   // Type the activity properly
   const typedActivity: RecentActivityItem[] = Array.isArray(recentActivity) 
-    ? recentActivity.map((item: Partial<RecentActivityItem>) => ({
-        id: item.id || '',
-        questionId: item.questionId || '',
-        questionTitle: item.questionTitle || '',
-        level: (item.level as QuestionLevel) || QuestionLevel.EASY,
-        solvedAt: item.solvedAt || ''
-      }))
+    ? recentActivity.map((item: unknown) => {
+        const activityItem = item as Partial<RecentActivityItem>;
+        return {
+          id: activityItem.id || `activity-${Date.now()}-${Math.random()}`,
+          questionId: activityItem.questionId || '',
+          questionTitle: activityItem.questionTitle || 'Unknown Question',
+          level: (activityItem.level as QuestionLevel) || QuestionLevel.EASY,
+          solvedAt: activityItem.solvedAt || new Date().toISOString()
+        };
+      })
     : [];
 
+  // Calculate achievements based on actual stats structure
   const achievements = [
     {
       icon: Target,
       title: 'Getting Started',
       description: 'Solve your first problem',
-      progress: Math.min(typedStats.totalSolved, 1),
+      progress: Math.min(processedStats.totalSolved, 1),
       total: 1,
       color: 'green' as const,
     },
@@ -225,7 +247,7 @@ export default function ProgressPage() {
       icon: TrendingUp,
       title: 'Problem Solver',
       description: 'Solve 10 problems',
-      progress: Math.min(typedStats.totalSolved, 10),
+      progress: Math.min(processedStats.totalSolved, 10),
       total: 10,
       color: 'blue' as const,
     },
@@ -233,32 +255,32 @@ export default function ProgressPage() {
       icon: Award,
       title: 'Dedicated Learner',
       description: 'Solve 50 problems',
-      progress: Math.min(typedStats.totalSolved, 50),
+      progress: Math.min(processedStats.totalSolved, 50),
       total: 50,
       color: 'purple' as const,
     },
     {
       icon: CheckCircle,
-      title: 'Easy Master',
-      description: 'Solve all easy problems',
-      progress: typedStats.solvedByLevel.easy,
-      total: typedStats.totalByLevel.easy,
+      title: 'Easy Enthusiast',
+      description: 'Solve 10 easy problems',
+      progress: Math.min(processedStats.solvedByLevel.easy, 10),
+      total: 10,
       color: 'green' as const,
     },
     {
       icon: Target,
-      title: 'Medium Conqueror',
-      description: 'Solve all medium problems',
-      progress: typedStats.solvedByLevel.medium,
-      total: typedStats.totalByLevel.medium,
+      title: 'Medium Challenger',
+      description: 'Solve 5 medium problems',
+      progress: Math.min(processedStats.solvedByLevel.medium, 5),
+      total: 5,
       color: 'orange' as const,
     },
     {
       icon: Award,
-      title: 'Hard Champion',
-      description: 'Solve all hard problems',
-      progress: typedStats.solvedByLevel.hard,
-      total: typedStats.totalByLevel.hard,
+      title: 'Hard Warrior',
+      description: 'Solve 3 hard problems',
+      progress: Math.min(processedStats.solvedByLevel.hard, 3),
+      total: 3,
       color: 'purple' as const,
     },
   ];
@@ -273,6 +295,57 @@ export default function ProgressPage() {
         <p className="text-gray-600 mt-1">
           Track your learning journey and achievements
         </p>
+      </div>
+
+      {/* Progress Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Solved</p>
+                <p className="text-2xl font-bold text-gray-900">{processedStats.totalSolved}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <Target className="h-5 w-5 text-blue-500" />
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Questions</p>
+                <p className="text-2xl font-bold text-gray-900">{processedStats.totalQuestions}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <TrendingUp className="h-5 w-5 text-purple-500" />
+              <div>
+                <p className="text-sm font-medium text-gray-600">Recent Solved</p>
+                <p className="text-2xl font-bold text-gray-900">{processedStats.recentSolved}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <Award className="h-5 w-5 text-orange-500" />
+              <div>
+                <p className="text-sm font-medium text-gray-600">Current Streak</p>
+                <p className="text-2xl font-bold text-gray-900">{processedStats.streak}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Progress Tabs */}

@@ -197,6 +197,34 @@ export interface SolutionsQueryParams {
   questionId?: string;
 }
 
+export interface CategoryQueryParams {
+  search?: string;
+  page?: number;
+  size?: number;
+}
+
+export interface ApproachQueryParams {
+  questionId?: string;
+  userId?: string;
+  page?: number;
+  size?: number;
+}
+
+export interface ProgressQueryParams {
+  userId?: string;
+  categoryId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface AdminQueryParams {
+  page?: number;
+  size?: number;
+  search?: string;
+  role?: string;
+  status?: string;
+}
+
 // =============================================================================
 // REQUEST/RESPONSE INTERFACES
 // =============================================================================
@@ -218,6 +246,29 @@ export interface CodeExecutionRequest {
   args?: string[];
 }
 
+export interface CategoryCreateRequest {
+  name: string;
+}
+
+export interface CategoryUpdateRequest {
+  name: string;
+}
+
+export interface UserRoleUpdateRequest {
+  role: string;
+}
+
+// Type-safe query parameter union
+export type QueryParams = 
+  | QuestionsQueryParams
+  | UsersQueryParams 
+  | SolutionsQueryParams
+  | CategoryQueryParams
+  | ApproachQueryParams
+  | ProgressQueryParams
+  | AdminQueryParams
+  | Record<string, string | number | boolean | undefined>;
+
 // =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
@@ -225,7 +276,7 @@ export interface CodeExecutionRequest {
 /**
  * Build query string from parameters
  */
-export function buildQueryString(params: Record<string, any>): string {
+export function buildQueryString(params: QueryParams): string {
   const searchParams = new URLSearchParams();
   
   Object.entries(params).forEach(([key, value]) => {
@@ -241,7 +292,7 @@ export function buildQueryString(params: Record<string, any>): string {
 /**
  * Build full URL with query parameters
  */
-export function buildApiUrl(endpoint: string, params?: Record<string, any>): string {
+export function buildApiUrl(endpoint: string, params?: QueryParams): string {
   const baseUrl = endpoint;
   const queryString = params ? buildQueryString(params) : '';
   return `${baseUrl}${queryString}`;

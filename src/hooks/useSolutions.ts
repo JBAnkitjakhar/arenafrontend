@@ -6,7 +6,7 @@ import { addToast } from '@/store/slices/uiSlice';
 import { api } from '@/lib/api/client';
 import { queryKeys } from '@/lib/query-client';
 import { Solution, SolutionFormData, YouTubeValidationResponse } from '@/types';
-import { enhanceSolutionWithYouTube } from '@/lib/youtube-utils';
+import { enhanceSolutionWithYouTube, EnhancedSolution } from '@/lib/youtube-utils';
 
 interface ApiError {
   response?: {
@@ -18,11 +18,20 @@ interface ApiError {
   message?: string;
 }
 
+interface SolutionStats {
+  totalSolutions: number;
+  solutionsWithImages: number;
+  solutionsWithVisualizers: number;
+  solutionsWithYoutubeVideos: number;
+  solutionsWithDriveLinks: number;
+  solutionsWithBothLinks: number;
+}
+
 // Get solutions for a question (enhanced with YouTube helpers)
 export function useSolutions(questionId: string) {
   return useQuery({
     queryKey: queryKeys.solutions.byQuestion(questionId),
-    queryFn: async () => {
+    queryFn: async (): Promise<EnhancedSolution[]> => {
       const solutions = await api.get<Solution[]>(`/dsa/questions/${questionId}/solutions`);
       // Enhance each solution with YouTube helper methods
       return solutions.map(enhanceSolutionWithYouTube);
@@ -36,7 +45,7 @@ export function useSolutions(questionId: string) {
 export function useSolution(id: string) {
   return useQuery({
     queryKey: queryKeys.solutions.detail(id),
-    queryFn: async () => {
+    queryFn: async (): Promise<EnhancedSolution> => {
       const solution = await api.get<Solution>(`/dsa/solutions/${id}`);
       return enhanceSolutionWithYouTube(solution);
     },
@@ -49,8 +58,10 @@ export function useValidateYouTube() {
   const dispatch = useAppDispatch();
   
   return useMutation({
-    mutationFn: (youtubeLink: string) =>
-      api.post<YouTubeValidationResponse>('/dsa/solutions/validate-youtube', { youtubeLink }),
+    mutationFn: async (youtubeLink: string): Promise<YouTubeValidationResponse> => {
+      const response = await api.post<YouTubeValidationResponse>('/dsa/solutions/validate-youtube', { youtubeLink });
+      return response;
+    },
     onError: (error: ApiError) => {
       const message = error?.response?.data?.error || 'Failed to validate YouTube URL';
       dispatch(addToast({
@@ -66,7 +77,7 @@ export function useValidateYouTube() {
 export function useSolutionsWithYouTube() {
   return useQuery({
     queryKey: ['solutions', 'with-youtube'],
-    queryFn: async () => {
+    queryFn: async (): Promise<EnhancedSolution[]> => {
       const solutions = await api.get<Solution[]>('/dsa/solutions/with-youtube');
       return solutions.map(enhanceSolutionWithYouTube);
     },
@@ -78,14 +89,10 @@ export function useSolutionsWithYouTube() {
 export function useSolutionStats() {
   return useQuery({
     queryKey: ['solutions', 'stats'],
-    queryFn: () => api.get<{
-      totalSolutions: number;
-      solutionsWithImages: number;
-      solutionsWithVisualizers: number;
-      solutionsWithYoutubeVideos: number;
-      solutionsWithDriveLinks: number;
-      solutionsWithBothLinks: number;
-    }>('/dsa/solutions/stats'),
+    queryFn: async (): Promise<SolutionStats> => {
+      const response = await api.get<SolutionStats>('/dsa/solutions/stats');
+      return response;
+    },
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 }
@@ -96,14 +103,16 @@ export function useCreateSolution() {
   const dispatch = useAppDispatch();
 
   return useMutation({
-    mutationFn: ({ questionId, data }: { questionId: string; data: SolutionFormData }) =>
-      api.post<Solution>(`/dsa/questions/${questionId}/solutions`, data),
+    mutationFn: async ({ questionId, data }: { questionId: string; data: SolutionFormData }): Promise<Solution> => {
+      const response = await api.post<Solution>(`/dsa/questions/${questionId}/solutions`, data);
+      return response;
+    },
     onSuccess: (newSolution, { questionId }) => {
       // Enhance the new solution
       const enhancedSolution = enhanceSolutionWithYouTube(newSolution);
       
       // Update solutions cache
-      queryClient.setQueryData<Solution[]>(
+      queryClient.setQueryData<EnhancedSolution[]>(
         queryKeys.solutions.byQuestion(questionId),
         (old) => old ? [...old, enhancedSolution] : [enhancedSolution]
       );
@@ -148,8 +157,10 @@ export function useUpdateSolution() {
   const dispatch = useAppDispatch();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: SolutionFormData }) =>
-      api.put<Solution>(`/dsa/solutions/${id}`, data),
+    mutationFn: async ({ id, data }: { id: string; data: SolutionFormData }): Promise<Solution> => {
+      const response = await api.put<Solution>(`/dsa/solutions/${id}`, data);
+      return response;
+    },
     onSuccess: (updatedSolution) => {
       // Enhance the updated solution
       const enhancedSolution = enhanceSolutionWithYouTube(updatedSolution);
@@ -162,7 +173,7 @@ export function useUpdateSolution() {
       
       // Update solutions list cache
       if (enhancedSolution.questionId) {
-        queryClient.setQueryData<Solution[]>(
+        queryClient.setQueryData<EnhancedSolution[]>(
           queryKeys.solutions.byQuestion(enhancedSolution.questionId),
           (old) => 
             old?.map(sol => 
@@ -203,7 +214,9 @@ export function useDeleteSolution() {
   const dispatch = useAppDispatch();
 
   return useMutation({
-    mutationFn: (id: string) => api.delete(`/dsa/solutions/${id}`),
+    mutationFn: async (id: string): Promise<void> => {
+      await api.delete(`/dsa/solutions/${id}`);
+    },
     onSuccess: (_, deletedId) => {
       // Remove from all relevant caches
       queryClient.removeQueries({

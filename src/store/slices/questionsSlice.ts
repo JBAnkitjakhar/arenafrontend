@@ -3,9 +3,15 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Question, QuestionDetail, Category, QuestionLevel } from '@/types';
 
+// Extended Question interface to include progress information
+interface QuestionWithProgress extends Question {
+  solved?: boolean;
+  solvedAt?: string;
+}
+
 interface QuestionsState {
   categories: Category[];
-  questions: Question[];
+  questions: QuestionWithProgress[];
   currentQuestion: QuestionDetail | null;
   filters: {
     category: string;
@@ -128,9 +134,12 @@ const questionsSlice = createSlice({
       // Update in questions list
       const questionIndex = state.questions.findIndex(q => q.id === action.payload.questionId);
       if (questionIndex !== -1) {
-        // Add solved status to question type if needed
-        (state.questions[questionIndex] as any).solved = action.payload.solved;
-        (state.questions[questionIndex] as any).solvedAt = action.payload.solvedAt;
+        // Type-safe update with progress information
+        state.questions[questionIndex] = {
+          ...state.questions[questionIndex],
+          solved: action.payload.solved,
+          solvedAt: action.payload.solvedAt,
+        };
       }
     },
     
@@ -139,7 +148,15 @@ const questionsSlice = createSlice({
       key: keyof QuestionsState['filters'];
       value: string;
     }>) => {
-      state.filters[action.payload.key] = action.payload.value as any;
+      const { key, value } = action.payload;
+      
+      // Type-safe filter update
+      if (key === 'level') {
+        state.filters[key] = value as QuestionLevel | '';
+      } else {
+        state.filters[key] = value;
+      }
+      
       // Reset pagination when filters change
       state.pagination.page = 0;
     },
@@ -173,7 +190,10 @@ const questionsSlice = createSlice({
     updateQuestion: (state, action: PayloadAction<Question>) => {
       const index = state.questions.findIndex(q => q.id === action.payload.id);
       if (index !== -1) {
-        state.questions[index] = action.payload;
+        state.questions[index] = {
+          ...state.questions[index],
+          ...action.payload,
+        };
       }
       
       // Update current question if it matches

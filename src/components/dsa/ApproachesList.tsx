@@ -9,12 +9,10 @@ import { useDeleteApproach } from '@/hooks/useApproaches';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
-  ChevronDown, 
   ChevronUp, 
   Code, 
   FileText, 
   Trash2,
-  Edit,
   Calendar,
   Eye
 } from 'lucide-react';
@@ -25,7 +23,7 @@ interface ApproachesListProps {
   approaches: Approach[];
 }
 
-export function ApproachesList({ questionId, approaches }: ApproachesListProps) {
+export function ApproachesList({ approaches }: ApproachesListProps) {
   const [expandedApproach, setExpandedApproach] = useState<string | null>(null);
   const deleteApproach = useDeleteApproach();
 
@@ -46,7 +44,7 @@ export function ApproachesList({ questionId, approaches }: ApproachesListProps) 
           <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">No Approaches Yet</h3>
           <p className="text-gray-600 mb-4">
-            You haven't added any approaches for this question yet. Start by adding your first approach!
+            You havent added any approaches for this question yet. Start by adding your first approach!
           </p>
         </CardContent>
       </Card>

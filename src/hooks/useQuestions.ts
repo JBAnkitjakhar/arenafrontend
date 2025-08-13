@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppDispatch } from '@/store';
 import { addToast } from '@/store/slices/uiSlice';
-import { questionsApi } from '@/lib/api/client';
+import { api } from '@/lib/api/client';
 import { queryKeys } from '@/lib/query-client';
 import { Question, QuestionDetail, PaginatedResponse, QuestionFormData } from '@/types';
 
@@ -17,21 +17,6 @@ interface ApiError {
   message?: string;
 }
 
-interface ApiResponse<T = unknown> {
-  data?: T;
-  content?: T[];
-  totalElements?: number;
-  totalPages?: number;
-  number?: number;
-  size?: number;
-  first?: boolean;
-  last?: boolean;
-}
-
-interface QuestionResponse extends Question {
-  data?: Question;
-}
-
 interface QuestionsParams {
   page?: number;
   size?: number;
@@ -40,30 +25,28 @@ interface QuestionsParams {
   search?: string;
 }
 
+interface QuestionCounts {
+  total: number;
+  byLevel: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
+  byCategory: Record<string, {
+    name: string;
+    count: number;
+  }>;
+}
+
 // Get paginated questions
 export function useQuestions(params: QuestionsParams = {}) {
   return useQuery({
     queryKey: queryKeys.questions.list(params),
-    queryFn: () => questionsApi.getAll({
-      page: params.page || 0,
-      size: params.size || 20,
-      categoryId: params.category,
-      level: params.level,
-      search: params.search,
-    }),
-    staleTime: 1 * 60 * 1000, // 1 minute
-    select: (data: ApiResponse<Question>): PaginatedResponse<Question> => {
-      // Ensure the data matches our expected type
-      return {
-        content: data?.content || (data as ApiResponse)?.data?.content || [],
-        totalElements: data?.totalElements || (data as ApiResponse)?.data?.totalElements || 0,
-        totalPages: data?.totalPages || (data as ApiResponse)?.data?.totalPages || 0,
-        number: data?.number || (data as ApiResponse)?.data?.number || 0,
-        size: data?.size || (data as ApiResponse)?.data?.size || 20,
-        first: data?.first || (data as ApiResponse)?.data?.first || true,
-        last: data?.last || (data as ApiResponse)?.data?.last || true,
-      };
+    queryFn: async (): Promise<PaginatedResponse<Question>> => {
+      const response = await api.get<PaginatedResponse<Question>>('/dsa/questions', params);
+      return response;
     },
+    staleTime: 1 * 60 * 1000, // 1 minute
   });
 }
 
@@ -71,14 +54,12 @@ export function useQuestions(params: QuestionsParams = {}) {
 export function useQuestionDetail(questionId: string) {
   return useQuery({
     queryKey: queryKeys.questions.detail(questionId),
-    queryFn: () => questionsApi.getById(questionId),
+    queryFn: async (): Promise<QuestionDetail> => {
+      const response = await api.get<QuestionDetail>(`/dsa/questions/${questionId}`);
+      return response;
+    },
     enabled: !!questionId,
     staleTime: 2 * 60 * 1000, // 2 minutes
-    select: (data: ApiResponse<QuestionDetail>): QuestionDetail => {
-      // Handle both direct response and wrapped response
-      const questionData = data?.data || (data as QuestionDetail);
-      return questionData;
-    },
   });
 }
 
@@ -86,23 +67,11 @@ export function useQuestionDetail(questionId: string) {
 export function useQuestionCounts() {
   return useQuery({
     queryKey: queryKeys.questions.counts,
-    queryFn: () => questionsApi.getStats(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    select: (data: ApiResponse) => {
-      // Ensure the data structure matches what the UI expects
-      const counts = data?.data || data;
-      return {
-        total: (counts as any)?.total || 0,
-        byLevel: {
-          easy: (counts as any)?.byLevel?.easy || 0,
-          medium: (counts as any)?.byLevel?.medium || 0,
-          hard: (counts as any)?.byLevel?.hard || 0,
-        },
-        byCategory: (counts as any)?.byCategory || {},
-        solved: (counts as any)?.solved || 0,
-        unsolved: (counts as any)?.unsolved || 0,
-      };
+    queryFn: async (): Promise<QuestionCounts> => {
+      const response = await api.get<QuestionCounts>('/dsa/questions/counts');
+      return response;
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
@@ -110,12 +79,12 @@ export function useQuestionCounts() {
 export function useSearchQuestions(query: string) {
   return useQuery({
     queryKey: queryKeys.questions.search(query),
-    queryFn: () => questionsApi.search(query),
+    queryFn: async (): Promise<Question[]> => {
+      const response = await api.get<Question[]>(`/dsa/questions/search?q=${encodeURIComponent(query)}`);
+      return response;
+    },
     enabled: !!query && query.length > 2,
     staleTime: 1 * 60 * 1000, // 1 minute
-    select: (data: ApiResponse<Question[]>): Question[] => {
-      return data?.data || (data as Question[]) || [];
-    },
   });
 }
 
@@ -125,11 +94,14 @@ export function useCreateQuestion() {
   const dispatch = useAppDispatch();
 
   return useMutation({
-    mutationFn: (data: QuestionFormData) => questionsApi.create(data),
-    onSuccess: (newQuestion: QuestionResponse) => {
+    mutationFn: async (data: QuestionFormData): Promise<Question> => {
+      const response = await api.post<Question>('/dsa/questions', data);
+      return response;
+    },
+    onSuccess: (newQuestion: Question) => {
       // Invalidate questions lists
       queryClient.invalidateQueries({
-        queryKey: queryKeys.questions.lists()
+        queryKey: ['questions']
       });
       
       // Invalidate question counts
@@ -137,10 +109,9 @@ export function useCreateQuestion() {
         queryKey: queryKeys.questions.counts
       });
       
-      const questionData = newQuestion?.data || newQuestion;
       dispatch(addToast({
         title: 'Question Created',
-        description: `"${questionData.title}" has been created successfully.`,
+        description: `"${newQuestion.title}" has been created successfully.`,
         type: 'success',
       }));
     },
@@ -161,25 +132,25 @@ export function useUpdateQuestion() {
   const dispatch = useAppDispatch();
 
   return useMutation({
-    mutationFn: ({ questionId, data }: { questionId: string; data: QuestionFormData }) =>
-      questionsApi.update(questionId, data),
-    onSuccess: (updatedQuestion: QuestionResponse, { questionId }) => {
-      const questionData = updatedQuestion?.data || updatedQuestion;
-      
+    mutationFn: async ({ questionId, data }: { questionId: string; data: QuestionFormData }): Promise<Question> => {
+      const response = await api.put<Question>(`/dsa/questions/${questionId}`, data);
+      return response;
+    },
+    onSuccess: (updatedQuestion: Question, { questionId }) => {
       // Update specific question cache
       queryClient.setQueryData(
         queryKeys.questions.detail(questionId),
-        questionData
+        updatedQuestion
       );
       
       // Invalidate questions lists
       queryClient.invalidateQueries({
-        queryKey: queryKeys.questions.lists()
+        queryKey: ['questions']
       });
       
       dispatch(addToast({
         title: 'Question Updated',
-        description: `"${questionData.title}" has been updated successfully.`,
+        description: `"${updatedQuestion.title}" has been updated successfully.`,
         type: 'success',
       }));
     },
@@ -200,7 +171,9 @@ export function useDeleteQuestion() {
   const dispatch = useAppDispatch();
 
   return useMutation({
-    mutationFn: (questionId: string) => questionsApi.delete(questionId),
+    mutationFn: async (questionId: string): Promise<void> => {
+      await api.delete(`/dsa/questions/${questionId}`);
+    },
     onSuccess: (_, questionId) => {
       // Remove from question detail cache
       queryClient.removeQueries({
@@ -209,7 +182,7 @@ export function useDeleteQuestion() {
       
       // Invalidate questions lists
       queryClient.invalidateQueries({
-        queryKey: queryKeys.questions.lists()
+        queryKey: ['questions']
       });
       
       // Invalidate question counts

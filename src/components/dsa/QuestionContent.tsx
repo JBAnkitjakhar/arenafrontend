@@ -4,15 +4,14 @@
 
 import { Question, QuestionLevel } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { getDifficultyColor } from '@/lib/utils';
-import { BookOpen, Tag, User, Calendar, Image, Code } from 'lucide-react';
+import { BookOpen, Tag, User, Calendar, ImageIcon, Code } from 'lucide-react';
+import Image from 'next/image';
 
 interface QuestionContentProps {
   question: Question;
 }
 
-// Simple Badge component since it might be missing
+// Simple Badge component
 const Badge = ({ children, className }: { children: React.ReactNode; className?: string }) => (
   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${className}`}>
     {children}
@@ -61,7 +60,7 @@ export function QuestionContent({ question }: QuestionContentProps) {
 
               {question.imageUrls && question.imageUrls.length > 0 && (
                 <div className="flex items-center space-x-1">
-                  <Image className="h-4 w-4" />
+                  <ImageIcon className="h-4 w-4" />
                   <span>{question.imageUrls.length} image{question.imageUrls.length !== 1 ? 's' : ''}</span>
                 </div>
               )}
@@ -104,7 +103,7 @@ export function QuestionContent({ question }: QuestionContentProps) {
           <CardContent className="pt-6">
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
-                <Image className="h-5 w-5 text-green-600" />
+                <ImageIcon className="h-5 w-5 text-green-600" />
                 <h2 className="text-lg font-semibold text-gray-900">
                   Visual Examples ({question.imageUrls.length})
                 </h2>
@@ -113,12 +112,16 @@ export function QuestionContent({ question }: QuestionContentProps) {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {question.imageUrls.map((imageUrl, index) => (
                   <div key={index} className="relative group">
-                    <img
-                      src={imageUrl}
-                      alt={`Question example ${index + 1}`}
-                      className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity border"
-                      onClick={() => window.open(imageUrl, '_blank')}
-                    />
+                    <div className="relative w-full h-48 border rounded-lg overflow-hidden">
+                      <Image
+                        src={imageUrl}
+                        alt={`Question example ${index + 1}`}
+                        fill
+                        className="object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => window.open(imageUrl, '_blank')}
+                        unoptimized // For external images
+                      />
+                    </div>
                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-colors rounded-lg"></div>
                     
                     {/* Image overlay info */}
@@ -182,7 +185,7 @@ export function QuestionContent({ question }: QuestionContentProps) {
           <CardContent className="pt-6">
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
-                <Image className="h-5 w-5 text-green-600" />
+                <ImageIcon className="h-5 w-5 text-green-600" />
                 <h2 className="text-lg font-semibold text-gray-900">Additional Resources</h2>
               </div>
               

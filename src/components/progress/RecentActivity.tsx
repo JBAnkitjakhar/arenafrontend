@@ -130,7 +130,7 @@ export function RecentActivity({ activities, isLoading = false }: RecentActivity
       
       <CardContent>
         <div className="space-y-4">
-          {activities.map((activity, index) => (
+          {activities.map((activity) => (
             <div 
               key={activity.id} 
               className="flex items-center space-x-4 p-3 rounded-lg border border-gray-100 hover:border-gray-200 hover:bg-gray-50 transition-colors group"

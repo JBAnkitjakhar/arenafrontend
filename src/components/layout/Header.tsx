@@ -2,17 +2,18 @@
 
 'use client';
 
-import { useAppSelector, useAppDispatch } from '@/store';
+import { useAppDispatch } from '@/store';
 import { toggleSidebar, toggleMobileMenu } from '@/store/slices/uiSlice';
 import { useCurrentUser, useLogout } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Menu, User, LogOut, Settings, Crown } from 'lucide-react';
 import { UserRole } from '@/types';
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 
 export function Header() {
   const dispatch = useAppDispatch();
-  const { sidebarOpen } = useAppSelector(state => state.ui);
+  // const { sidebarOpen } = useAppSelector(state => state.ui);
   const { user, isAuthenticated } = useCurrentUser();
   const logout = useLogout();
   
@@ -113,7 +114,7 @@ export function Header() {
               >
                 <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
                   {user.image ? (
-                    <img 
+                    <Image
                       src={user.image} 
                       alt={user.name}
                       className="w-full h-full object-cover"
@@ -140,7 +141,7 @@ export function Header() {
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
                         {user.image ? (
-                          <img 
+                          <Image 
                             src={user.image} 
                             alt={user.name}
                             className="w-full h-full object-cover"

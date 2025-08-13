@@ -7,6 +7,31 @@ import { questionsApi } from '@/lib/api/client';
 import { queryKeys } from '@/lib/query-client';
 import { Question, QuestionDetail, PaginatedResponse, QuestionFormData } from '@/types';
 
+interface ApiError {
+  response?: {
+    data?: {
+      error?: string;
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
+interface ApiResponse<T = unknown> {
+  data?: T;
+  content?: T[];
+  totalElements?: number;
+  totalPages?: number;
+  number?: number;
+  size?: number;
+  first?: boolean;
+  last?: boolean;
+}
+
+interface QuestionResponse extends Question {
+  data?: Question;
+}
+
 interface QuestionsParams {
   page?: number;
   size?: number;
@@ -27,16 +52,16 @@ export function useQuestions(params: QuestionsParams = {}) {
       search: params.search,
     }),
     staleTime: 1 * 60 * 1000, // 1 minute
-    select: (data: any): PaginatedResponse<Question> => {
+    select: (data: ApiResponse<Question>): PaginatedResponse<Question> => {
       // Ensure the data matches our expected type
       return {
-        content: data?.content || data?.data?.content || [],
-        totalElements: data?.totalElements || data?.data?.totalElements || 0,
-        totalPages: data?.totalPages || data?.data?.totalPages || 0,
-        number: data?.number || data?.data?.number || 0,
-        size: data?.size || data?.data?.size || 20,
-        first: data?.first || data?.data?.first || true,
-        last: data?.last || data?.data?.last || true,
+        content: data?.content || (data as ApiResponse)?.data?.content || [],
+        totalElements: data?.totalElements || (data as ApiResponse)?.data?.totalElements || 0,
+        totalPages: data?.totalPages || (data as ApiResponse)?.data?.totalPages || 0,
+        number: data?.number || (data as ApiResponse)?.data?.number || 0,
+        size: data?.size || (data as ApiResponse)?.data?.size || 20,
+        first: data?.first || (data as ApiResponse)?.data?.first || true,
+        last: data?.last || (data as ApiResponse)?.data?.last || true,
       };
     },
   });
@@ -49,9 +74,9 @@ export function useQuestionDetail(questionId: string) {
     queryFn: () => questionsApi.getById(questionId),
     enabled: !!questionId,
     staleTime: 2 * 60 * 1000, // 2 minutes
-    select: (data: any): QuestionDetail => {
+    select: (data: ApiResponse<QuestionDetail>): QuestionDetail => {
       // Handle both direct response and wrapped response
-      const questionData = data?.data || data;
+      const questionData = data?.data || (data as QuestionDetail);
       return questionData;
     },
   });
@@ -63,19 +88,19 @@ export function useQuestionCounts() {
     queryKey: queryKeys.questions.counts,
     queryFn: () => questionsApi.getStats(),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    select: (data: any) => {
+    select: (data: ApiResponse) => {
       // Ensure the data structure matches what the UI expects
       const counts = data?.data || data;
       return {
-        total: counts?.total || 0,
+        total: (counts as any)?.total || 0,
         byLevel: {
-          easy: counts?.byLevel?.easy || 0,
-          medium: counts?.byLevel?.medium || 0,
-          hard: counts?.byLevel?.hard || 0,
+          easy: (counts as any)?.byLevel?.easy || 0,
+          medium: (counts as any)?.byLevel?.medium || 0,
+          hard: (counts as any)?.byLevel?.hard || 0,
         },
-        byCategory: counts?.byCategory || {},
-        solved: counts?.solved || 0,
-        unsolved: counts?.unsolved || 0,
+        byCategory: (counts as any)?.byCategory || {},
+        solved: (counts as any)?.solved || 0,
+        unsolved: (counts as any)?.unsolved || 0,
       };
     },
   });
@@ -88,8 +113,8 @@ export function useSearchQuestions(query: string) {
     queryFn: () => questionsApi.search(query),
     enabled: !!query && query.length > 2,
     staleTime: 1 * 60 * 1000, // 1 minute
-    select: (data: any): Question[] => {
-      return data?.data || data || [];
+    select: (data: ApiResponse<Question[]>): Question[] => {
+      return data?.data || (data as Question[]) || [];
     },
   });
 }
@@ -101,7 +126,7 @@ export function useCreateQuestion() {
 
   return useMutation({
     mutationFn: (data: QuestionFormData) => questionsApi.create(data),
-    onSuccess: (newQuestion) => {
+    onSuccess: (newQuestion: QuestionResponse) => {
       // Invalidate questions lists
       queryClient.invalidateQueries({
         queryKey: queryKeys.questions.lists()
@@ -119,7 +144,7 @@ export function useCreateQuestion() {
         type: 'success',
       }));
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       const message = error?.response?.data?.error || error?.response?.data?.message || 'Failed to create question';
       dispatch(addToast({
         title: 'Error',
@@ -138,7 +163,7 @@ export function useUpdateQuestion() {
   return useMutation({
     mutationFn: ({ questionId, data }: { questionId: string; data: QuestionFormData }) =>
       questionsApi.update(questionId, data),
-    onSuccess: (updatedQuestion, { questionId }) => {
+    onSuccess: (updatedQuestion: QuestionResponse, { questionId }) => {
       const questionData = updatedQuestion?.data || updatedQuestion;
       
       // Update specific question cache
@@ -158,7 +183,7 @@ export function useUpdateQuestion() {
         type: 'success',
       }));
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       const message = error?.response?.data?.error || error?.response?.data?.message || 'Failed to update question';
       dispatch(addToast({
         title: 'Error',
@@ -203,7 +228,7 @@ export function useDeleteQuestion() {
         type: 'success',
       }));
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       const message = error?.response?.data?.error || error?.response?.data?.message || 'Failed to delete question';
       dispatch(addToast({
         title: 'Error',

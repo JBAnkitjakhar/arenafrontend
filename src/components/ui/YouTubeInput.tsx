@@ -2,12 +2,12 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { YouTubeThumbnail } from '@/components/ui/YouTubeEmbed';
-import { isValidYouTubeUrl, extractYouTubeVideoId, getYouTubeThumbnail } from '@/lib/youtube-utils';
-import { Play, ExternalLink, AlertCircle, Check, X } from 'lucide-react';
+import { isValidYouTubeUrl, extractYouTubeVideoId } from '@/lib/youtube-utils';
+import { ExternalLink, AlertCircle, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface YouTubeInputProps {
@@ -36,28 +36,7 @@ export function YouTubeInput({
   const [validationStatus, setValidationStatus] = useState<'valid' | 'invalid' | 'idle'>('idle');
   const [videoId, setVideoId] = useState<string | null>(null);
 
-  // Debounced validation
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (inputValue.trim()) {
-        validateUrl(inputValue);
-      } else {
-        setValidationStatus('idle');
-        setVideoId(null);
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [inputValue]);
-
-  // Update internal state when external value changes
-  useEffect(() => {
-    if (value !== inputValue) {
-      setInputValue(value);
-    }
-  }, [value]);
-
-  const validateUrl = async (url: string) => {
+  const validateUrl = useCallback(async (url: string) => {
     setIsValidating(true);
     
     try {
@@ -73,13 +52,35 @@ export function YouTubeInput({
         setVideoId(null);
         // Don't call onChange for invalid URLs
       }
-    } catch (error) {
+    } catch {
+      // Removed unused error parameter to fix ESLint warning
       setValidationStatus('invalid');
       setVideoId(null);
     } finally {
       setIsValidating(false);
     }
-  };
+  }, [onChange]);
+
+  // Debounced validation
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (inputValue.trim()) {
+        validateUrl(inputValue);
+      } else {
+        setValidationStatus('idle');
+        setVideoId(null);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [inputValue, validateUrl]);
+
+  // Update internal state when external value changes
+  useEffect(() => {
+    if (value !== inputValue) {
+      setInputValue(value);
+    }
+  }, [value, inputValue]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;

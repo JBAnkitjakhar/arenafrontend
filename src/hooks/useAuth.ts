@@ -9,6 +9,16 @@ import { queryKeys } from '@/lib/query-client';
 import { User } from '@/types';
 import { useRouter } from 'next/navigation';
 
+interface ApiError {
+  response?: {
+    data?: {
+      error?: string;
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
 // Get current user info
 export function useCurrentUser() {
   const { user, isAuthenticated, isLoading } = useAppSelector(state => state.auth);
@@ -35,7 +45,7 @@ export function useOAuthCallback() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: async ({ token, userId }: { token: string; userId: string }) => {
+    mutationFn: async ({ token }: { token: string; userId: string }) => {
       // Get user info with the token
       const response = await api.get<User>('/auth/me');
       return { user: response, token };
@@ -49,7 +59,7 @@ export function useOAuthCallback() {
       }));
       router.push('/dashboard');
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       const message = error?.response?.data?.message || 'Login failed';
       dispatch(loginFailure(message));
       dispatch(addToast({
@@ -103,8 +113,6 @@ export function useRefreshToken() {
 
 // Auth utilities
 export function useAuthActions() {
-  const dispatch = useAppDispatch();
-  
   const initiateGoogleLogin = () => {
     window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL}/oauth2/authorization/google`;
   };

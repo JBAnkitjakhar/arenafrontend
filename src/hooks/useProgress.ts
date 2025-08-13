@@ -9,6 +9,20 @@ import { queryKeys } from '@/lib/query-client';
 import { UserProgress } from '@/types';
 import { useCurrentUser } from './useAuth';
 
+interface ApiError {
+  response?: {
+    data?: {
+      error?: string;
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
+interface ProgressResponse extends UserProgress {
+  solvedAt?: string;
+}
+
 // Get user's progress for a specific question
 export function useQuestionProgress(questionId: string) {
   const { user } = useCurrentUser();
@@ -63,12 +77,14 @@ export function useUpdateProgress() {
   return useMutation({
     mutationFn: ({ questionId, solved }: { questionId: string; solved: boolean }) =>
       progressApi.updateQuestionProgress(questionId, { solved }),
-    onSuccess: (updatedProgress, { questionId, solved }) => {
+    onSuccess: (updatedProgress: unknown, { questionId, solved }) => {
+      const progressData = updatedProgress as ProgressResponse;
+      
       // Update progress cache
       if (user?.id) {
         queryClient.setQueryData(
           queryKeys.progress.byQuestion(questionId, user.id),
-          updatedProgress
+          progressData
         );
       }
       
@@ -76,7 +92,7 @@ export function useUpdateProgress() {
       dispatch(updateQuestionProgress({
         questionId,
         solved,
-        solvedAt: updatedProgress.solvedAt,
+        solvedAt: progressData?.solvedAt || null,
       }));
       
       // Invalidate related caches
@@ -96,7 +112,7 @@ export function useUpdateProgress() {
         type: 'success',
       }));
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       const message = error?.response?.data?.error || 'Failed to update progress';
       dispatch(addToast({
         title: 'Error',

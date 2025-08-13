@@ -8,6 +8,16 @@ import { queryKeys } from '@/lib/query-client';
 import { Approach, ApproachFormData } from '@/types';
 import { useCurrentUser } from './useAuth';
 
+interface ApiError {
+  response?: {
+    data?: {
+      error?: string;
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
 // Get approaches for a question by current user
 export function useApproaches(questionId: string) {
   const { user } = useCurrentUser();
@@ -78,7 +88,7 @@ export function useCreateApproach() {
         type: 'success',
       }));
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       const message = error?.response?.data?.error || 'Failed to save approach';
       dispatch(addToast({
         title: 'Error',
@@ -127,7 +137,7 @@ export function useUpdateApproach() {
         type: 'success',
       }));
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       const message = error?.response?.data?.error || 'Failed to update approach';
       dispatch(addToast({
         title: 'Error',
@@ -142,7 +152,6 @@ export function useUpdateApproach() {
 export function useDeleteApproach() {
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
-  const { user } = useCurrentUser();
 
   return useMutation({
     mutationFn: (id: string) => api.delete(`/dsa/approaches/${id}`),
@@ -163,7 +172,7 @@ export function useDeleteApproach() {
         type: 'success',
       }));
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       const message = error?.response?.data?.error || 'Failed to delete approach';
       dispatch(addToast({
         title: 'Error',

@@ -1,7 +1,7 @@
 // src/hooks/useCompiler.ts
 
 import { useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { 
   setCode, 
@@ -21,6 +21,23 @@ import { addToast } from '@/store/slices/uiSlice';
 import { api } from '@/lib/api/client';
 import { queryKeys } from '@/lib/query-client';
 import { ExecutionRequest, ExecutionResponse } from '@/types';
+
+interface ApiError {
+  response?: {
+    data?: {
+      error?: string;
+      message?: string;
+    };
+    status?: number;
+  };
+  message?: string;
+}
+
+interface RuntimeData {
+  language: string;
+  version: string;
+  aliases: string[];
+}
 
 // Get compiler state
 export function useCompilerState() {
@@ -46,12 +63,18 @@ export function useRuntimes() {
         }>('/compiler/runtimes');
         
         if (response.success) {
-          dispatch(setRuntimesSuccess(response.data));
-          return response.data;
+          // Ensure aliases is always an array
+          const runtimesData: RuntimeData[] = response.data.map(runtime => ({
+            ...runtime,
+            aliases: runtime.aliases || []
+          }));
+          
+          dispatch(setRuntimesSuccess(runtimesData));
+          return runtimesData;
         } else {
           throw new Error('Failed to fetch runtimes');
         }
-      } catch (error: any) {
+      } catch (error: ApiError) {
         const message = error?.response?.data?.message || 'Failed to fetch runtimes';
         dispatch(setRuntimesError(message));
         throw error;
@@ -64,8 +87,6 @@ export function useRuntimes() {
 
 // Get supported languages only
 export function useLanguages() {
-  const dispatch = useAppDispatch();
-  
   return useQuery({
     queryKey: queryKeys.compiler.languages,
     queryFn: async () => {
@@ -106,7 +127,6 @@ export function useCompilerHealth() {
 // Execute code mutation
 export function useExecuteCode() {
   const dispatch = useAppDispatch();
-  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async (request: ExecutionRequest) => {
@@ -124,7 +144,7 @@ export function useExecuteCode() {
         } else {
           throw new Error(response.message || 'Execution failed');
         }
-      } catch (error: any) {
+      } catch (error: ApiError) {
         // Handle different types of errors
         if (error?.response?.status === 408) {
           throw new Error('Code execution timed out (30s limit exceeded)');
@@ -156,7 +176,7 @@ export function useExecuteCode() {
         }));
       }
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       const message = error?.message || 'Code execution failed';
       dispatch(setExecutionError(message));
       
@@ -188,7 +208,7 @@ export function useCompilerActions() {
     resetCompiler: () => {
       dispatch(setCode(''));
       dispatch(setStdin(''));
-      dispatch(setExecutionError(null));
+      dispatch(setExecutionError(''));
       dispatch(clearHistory());
     },
   };

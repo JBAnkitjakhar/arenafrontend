@@ -1,6 +1,13 @@
 // src/lib/youtube-utils.ts
 
-import { YouTubeVideoInfo } from '@/types';
+import { YouTubeVideoInfo, Solution } from '@/types';
+
+export interface YouTubeEmbedOptions {
+  autoplay?: boolean;
+  controls?: boolean;
+  start?: number;
+  modestbranding?: boolean;
+}
 
 /**
  * Extract YouTube video ID from various YouTube URL formats
@@ -50,17 +57,29 @@ export function isValidYouTubeUrl(url: string): boolean {
 /**
  * Generate YouTube embed URL from video ID
  */
-export function getYouTubeEmbedUrl(videoId: string, options?: {
-  autoplay?: boolean;
-  controls?: boolean;
-  start?: number;
-  modestbranding?: boolean;
-}): string {
-  const params = new URLSearchParams({
-    modestbranding: '1',
-    rel: '0',
-    ...options,
-  });
+export function getYouTubeEmbedUrl(videoId: string, options: YouTubeEmbedOptions = {}): string {
+  const params = new URLSearchParams();
+  
+  // Set default values
+  params.set('modestbranding', '1');
+  params.set('rel', '0');
+  
+  // Add optional parameters, converting to strings
+  if (options.autoplay !== undefined) {
+    params.set('autoplay', options.autoplay ? '1' : '0');
+  }
+  
+  if (options.controls !== undefined) {
+    params.set('controls', options.controls ? '1' : '0');
+  }
+  
+  if (options.start !== undefined) {
+    params.set('start', options.start.toString());
+  }
+  
+  if (options.modestbranding !== undefined) {
+    params.set('modestbranding', options.modestbranding ? '1' : '0');
+  }
   
   return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
 }
@@ -95,16 +114,28 @@ export function getYouTubeVideoInfo(url: string): YouTubeVideoInfo | null {
 }
 
 /**
+ * Enhanced solution type with YouTube properties
+ * Using undefined instead of null to match Solution interface
+ */
+export interface EnhancedSolution extends Solution {
+  hasValidYoutubeLink: boolean;
+  youtubeVideoId: string | undefined;
+  youtubeEmbedUrl: string | undefined;
+}
+
+/**
  * Enhance solution object with YouTube helper methods
  */
-export function enhanceSolutionWithYouTube(solution: any): any {
+export function enhanceSolutionWithYouTube(solution: Solution): EnhancedSolution {
+  const hasValidYoutubeLink = solution.youtubeLink ? isValidYouTubeUrl(solution.youtubeLink) : false;
+  const extractedVideoId = solution.youtubeLink ? extractYouTubeVideoId(solution.youtubeLink) : null;
+  const youtubeVideoId = extractedVideoId || undefined; // Convert null to undefined
+  const youtubeEmbedUrl = youtubeVideoId ? getYouTubeEmbedUrl(youtubeVideoId) : undefined;
+
   return {
     ...solution,
-    hasValidYoutubeLink: solution.youtubeLink ? isValidYouTubeUrl(solution.youtubeLink) : false,
-    youtubeVideoId: solution.youtubeLink ? extractYouTubeVideoId(solution.youtubeLink) : null,
-    youtubeEmbedUrl: solution.youtubeLink ? (() => {
-      const videoId = extractYouTubeVideoId(solution.youtubeLink);
-      return videoId ? getYouTubeEmbedUrl(videoId) : null;
-    })() : null,
+    hasValidYoutubeLink,
+    youtubeVideoId,
+    youtubeEmbedUrl,
   };
 }

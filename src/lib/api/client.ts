@@ -1,4 +1,4 @@
-// src/lib/api/client.ts - Updated API Client
+// src/lib/api/client.ts  
 
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
 import { API_ENDPOINTS, buildApiUrl } from './endpoints';

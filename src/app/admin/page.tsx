@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
+import Image from 'next/image';
 
 export default function AdminDashboardPage() {
   const { user } = useCurrentUser();
@@ -302,7 +303,7 @@ export default function AdminDashboardPage() {
                       {formatDistanceToNow(new Date(solution.createdAt), { addSuffix: true })}
                     </div>
                     {solution.youtubeVideoId && (
-                      <img
+                      <Image
                         src={`https://img.youtube.com/vi/${solution.youtubeVideoId}/mqdefault.jpg`}
                         alt="Video thumbnail"
                         className="w-full h-20 object-cover rounded"

@@ -8,6 +8,16 @@ import { queryKeys } from '@/lib/query-client';
 import { Solution, SolutionFormData, YouTubeValidationResponse } from '@/types';
 import { enhanceSolutionWithYouTube } from '@/lib/youtube-utils';
 
+interface ApiError {
+  response?: {
+    data?: {
+      error?: string;
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
 // Get solutions for a question (enhanced with YouTube helpers)
 export function useSolutions(questionId: string) {
   return useQuery({
@@ -41,7 +51,7 @@ export function useValidateYouTube() {
   return useMutation({
     mutationFn: (youtubeLink: string) =>
       api.post<YouTubeValidationResponse>('/dsa/solutions/validate-youtube', { youtubeLink }),
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       const message = error?.response?.data?.error || 'Failed to validate YouTube URL';
       dispatch(addToast({
         title: 'Validation Error',
@@ -121,7 +131,7 @@ export function useCreateSolution() {
         type: 'success',
       }));
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       const message = error?.response?.data?.error || 'Failed to create solution';
       dispatch(addToast({
         title: 'Error',
@@ -176,7 +186,7 @@ export function useUpdateSolution() {
         type: 'success',
       }));
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       const message = error?.response?.data?.error || 'Failed to update solution';
       dispatch(addToast({
         title: 'Error',
@@ -211,7 +221,7 @@ export function useDeleteSolution() {
         type: 'success',
       }));
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       const message = error?.response?.data?.error || 'Failed to delete solution';
       dispatch(addToast({
         title: 'Error',

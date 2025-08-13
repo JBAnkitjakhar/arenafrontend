@@ -1,15 +1,15 @@
-// src/components/providers.tsx
+// ===== src/components/providers.tsx =====
 
 'use client';
 
 import { Provider } from 'react-redux';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { store } from '@/store';
-import { queryClient } from '@/lib/query-client';
 import { useEffect } from 'react';
 import { useAppDispatch } from '@/store';
 import { initializeAuth } from '@/store/slices/authSlice';
+import { queryClient } from '@/lib/query-client';
 
 // Auth initializer component
 function AuthInitializer({ children }: { children: React.ReactNode }) {
@@ -31,10 +31,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           {children}
         </AuthInitializer>
         {process.env.NODE_ENV === 'development' && (
-          <ReactQueryDevtools 
-            initialIsOpen={false} 
-            buttonPosition="bottom-right"
-          />
+          <ReactQueryDevtools initialIsOpen={false} />
         )}
       </QueryClientProvider>
     </Provider>

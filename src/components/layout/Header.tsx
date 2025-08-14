@@ -117,7 +117,10 @@ export function Header() {
                     <Image
                       src={user.image} 
                       alt={user.name}
+                      width={32}
+                      height={32}
                       className="w-full h-full object-cover"
+                      unoptimized // Add this for external images
                     />
                   ) : (
                     <User className="h-4 w-4 text-gray-600" />
@@ -144,7 +147,10 @@ export function Header() {
                           <Image 
                             src={user.image} 
                             alt={user.name}
+                            width={40}
+                            height={40}
                             className="w-full h-full object-cover"
+                            unoptimized // Add this for external images
                           />
                         ) : (
                           <User className="h-5 w-5 text-gray-600" />

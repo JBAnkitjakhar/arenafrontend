@@ -57,6 +57,7 @@ apiClient.interceptors.response.use(
       if (typeof window !== 'undefined') {
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_user');
+        localStorage.removeItem('token'); 
         // Redirect to login (will be handled by auth store)
         window.location.href = '/auth/login';
       }

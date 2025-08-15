@@ -35,13 +35,13 @@ export function useOAuthCallback() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: async ({ token, userId }: { token: string; userId: string }) => {
+    mutationFn: async ({ token }: { token: string; userId?: string }) => {
       console.log('useOAuthCallback: Starting authentication with token:', token.substring(0, 20) + '...');
       
       // Store token first so API client can use it
-      localStorage.setItem('token', token);
+      localStorage.setItem('auth_token', token); // Fixed: Use consistent key
       
-      // ✅ FIXED: Use fetch instead of api.get() to avoid axios interceptor issues
+      // Use fetch instead of api.get() to avoid axios interceptor issues
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/me`, {
         method: 'GET',
         headers: {
@@ -76,8 +76,9 @@ export function useOAuthCallback() {
           description: `Logged in as ${user.name}`,
           type: 'success',
         }));
-      } catch (e) {
+      } catch (toastError) {
         // Toast might not be available
+        console.error(toastError);
         console.log('Toast not available, skipping');
       }
       
@@ -85,11 +86,12 @@ export function useOAuthCallback() {
       console.log('Redirecting to dashboard...');
       router.push('/dashboard');
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       console.error('useOAuthCallback: Error occurred:', error);
       
       // Clear any stored token on error
-      localStorage.removeItem('token');
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('token'); // Clear both versions
       
       // Update Redux state
       const message = error?.message || 'Authentication failed';
@@ -102,8 +104,9 @@ export function useOAuthCallback() {
           description: message,
           type: 'error',
         }));
-      } catch (e) {
+      } catch (toastError) {
         // Toast might not be available
+        console.error(toastError);
         console.log('Toast not available, skipping');
       }
       

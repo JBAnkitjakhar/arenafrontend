@@ -1,17 +1,17 @@
-// Temporary debug version - Replace src/app/auth/callback/AuthCallbackContent.tsx
+// src/app/auth/callback/page.tsx
 
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useOAuthCallback } from '@/hooks/useAuth';
-import { AlertCircle, CheckCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 
-export default function AuthCallbackContent() {
+export default function AuthCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const oauthCallback = useOAuthCallback();
-  const hasProcessed = useRef(false);
+  const [hasProcessed, setHasProcessed] = useState(false);
   
   const token = searchParams.get('token');
   const userId = searchParams.get('user');
@@ -19,10 +19,10 @@ export default function AuthCallbackContent() {
 
   // Debug logging
   console.log('=== AuthCallback Debug ===');
-  console.log('token:', token ? `${token.substring(0, 30)}...` : 'null');
+  console.log('token:', token ? token.substring(0, 20) + '...' : null);
   console.log('userId:', userId);
   console.log('error:', error);
-  console.log('hasProcessed:', hasProcessed.current);
+  console.log('hasProcessed:', hasProcessed);
   console.log('oauthCallback state:', {
     isPending: oauthCallback.isPending,
     isError: oauthCallback.isError,
@@ -31,71 +31,52 @@ export default function AuthCallbackContent() {
   });
 
   useEffect(() => {
-    console.log('=== AuthCallback useEffect ===');
-    console.log('hasProcessed.current:', hasProcessed.current);
-    
-    if (hasProcessed.current) {
-      console.log('Already processed, skipping');
+    // Prevent multiple executions
+    if (hasProcessed) {
+      console.log('Already processed, skipping...');
       return;
     }
 
     if (error) {
-      console.error('URL error detected:', error);
-      hasProcessed.current = true;
+      console.log('Error in URL params:', error);
+      setHasProcessed(true);
       setTimeout(() => {
-        console.log('Redirecting to login with error');
-        router.replace('/auth/login?error=oauth_failed');
+        router.push('/auth/login?error=oauth_failed');
       }, 2000);
       return;
     }
 
     if (token && userId) {
-      console.log('Processing OAuth callback...');
-      hasProcessed.current = true;
+      console.log('Processing OAuth callback with token and userId');
+      setHasProcessed(true);
       
-      // Test the API call directly first
-      console.log('Testing API call directly...');
-      fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/me`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
-      .then(response => {
-        console.log('Direct API test - status:', response.status);
-        return response.json();
-      })
-      .then(data => {
-        console.log('Direct API test - data:', data);
-        
-        // Now try the mutation
-        console.log('Starting mutation...');
-        oauthCallback.mutate({ token, userId });
-      })
-      .catch(err => {
-        console.error('Direct API test failed:', err);
-      });
-      
+      // Process successful OAuth callback
+      oauthCallback.mutate({ token, userId });
     } else {
-      console.error('Missing parameters:', { token: !!token, userId: !!userId });
-      hasProcessed.current = true;
+      console.log('Missing required parameters - token:', !!token, 'userId:', !!userId);
+      setHasProcessed(true);
       setTimeout(() => {
-        router.replace('/auth/login?error=invalid_callback');
+        router.push('/auth/login?error=invalid_callback');
       }, 2000);
     }
-  }, [token, userId, error, oauthCallback, router]);
+  }, [token, userId, error, hasProcessed, oauthCallback, router]);
 
-  // Debug render states
+  // Show different states
   if (error) {
     console.log('Rendering error state');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center space-y-4">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto" />
+          <div className="flex justify-center">
+            <AlertCircle className="h-12 w-12 text-red-500" />
+          </div>
           <h1 className="text-xl font-semibold text-gray-900">Authentication Failed</h1>
-          <p className="text-gray-600">Error: {error}</p>
-          <p className="text-sm text-gray-500">Redirecting to login page...</p>
+          <p className="text-gray-600">
+            There was an error during the authentication process.
+          </p>
+          <p className="text-sm text-gray-500">
+            Redirecting to login page...
+          </p>
         </div>
       </div>
     );
@@ -106,14 +87,18 @@ export default function AuthCallbackContent() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center space-y-4">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto" />
+          <div className="flex justify-center">
+            <AlertCircle className="h-12 w-12 text-red-500" />
+          </div>
           <h1 className="text-xl font-semibold text-gray-900">Login Failed</h1>
-          <p className="text-gray-600">Mutation failed</p>
+          <p className="text-gray-600">
+            Unable to complete the authentication process.
+          </p>
           <p className="text-sm text-gray-500 mb-4">
             Error: {oauthCallback.error?.message || 'Unknown error'}
           </p>
           <button
-            onClick={() => router.replace('/auth/login')}
+            onClick={() => router.push('/auth/login')}
             className="text-blue-600 hover:text-blue-800 underline"
           >
             Try Again
@@ -128,26 +113,34 @@ export default function AuthCallbackContent() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center space-y-4">
-          <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
+          <div className="flex justify-center">
+            <CheckCircle className="h-12 w-12 text-green-500" />
+          </div>
           <h1 className="text-xl font-semibold text-gray-900">Login Successful!</h1>
-          <p className="text-gray-600">Welcome to AlgoArena. Redirecting to dashboard...</p>
+          <p className="text-gray-600">
+            Welcome to AlgoArena. Redirecting to dashboard...
+          </p>
         </div>
       </div>
     );
   }
 
+  // Default loading state
   console.log('Rendering loading state');
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-center space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <h1 className="text-xl font-semibold text-gray-900">Processing authentication...</h1>
-        <p className="text-gray-600">Please wait while we complete your login.</p>
-        <div className="text-xs text-gray-400 mt-4">
-          <p>Debug info:</p>
+        <div className="flex justify-center">
+          <Loader2 className="h-12 w-12 text-blue-500 animate-spin" />
+        </div>
+        <h1 className="text-xl font-semibold text-gray-900">Processing Authentication</h1>
+        <p className="text-gray-600">
+          Please wait while we complete your login...
+        </p>
+        <div className="text-xs text-gray-400 space-y-1">
+          <p>Status: {oauthCallback.isPending ? 'Processing...' : 'Initializing...'}</p>
           <p>Token: {token ? 'Present' : 'Missing'}</p>
-          <p>UserId: {userId || 'Missing'}</p>
-          <p>Loading: {oauthCallback.isPending ? 'Yes' : 'No'}</p>
+          <p>User ID: {userId ? 'Present' : 'Missing'}</p>
         </div>
       </div>
     </div>

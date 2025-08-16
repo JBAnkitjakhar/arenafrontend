@@ -1,4 +1,4 @@
-// src/hooks/useCompiler.ts
+// src/hooks/useCompiler.ts - FIXED VERSION
 
 import { useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -13,7 +13,6 @@ import {
   setExecutionError,
   setRuntimesLoading,
   setRuntimesSuccess,
-  setRuntimesError,
   clearHistory,
   removeHistoryItem
 } from '@/store/slices/compilerSlice';
@@ -39,12 +38,33 @@ interface RuntimeData {
   aliases: string[];
 }
 
+// Fallback languages when API is down
+const FALLBACK_LANGUAGES = [
+  'javascript', 'python', 'java', 'cpp', 'c', 'go', 'rust', 'csharp', 'php', 'ruby', 'kotlin', 'typescript'
+];
+
+// Fallback runtimes when API is down
+const FALLBACK_RUNTIMES: RuntimeData[] = [
+  { language: 'javascript', version: '18.15.0', aliases: ['js', 'node'] },
+  { language: 'python', version: '3.10.0', aliases: ['py'] },
+  { language: 'java', version: '15.0.2', aliases: [] },
+  { language: 'cpp', version: '10.2.0', aliases: ['c++'] },
+  { language: 'c', version: '10.2.0', aliases: [] },
+  { language: 'go', version: '1.16.2', aliases: ['golang'] },
+  { language: 'rust', version: '1.56.0', aliases: ['rs'] },
+  { language: 'csharp', version: '6.12.0', aliases: ['cs', 'c#'] },
+  { language: 'php', version: '8.1.0', aliases: [] },
+  { language: 'ruby', version: '3.0.1', aliases: ['rb'] },
+  { language: 'kotlin', version: '1.5.31', aliases: ['kt'] },
+  { language: 'typescript', version: '4.4.4', aliases: ['ts'] },
+];
+
 // Get compiler state
 export function useCompilerState() {
   return useAppSelector(state => state.compiler);
 }
 
-// Get supported languages and runtimes
+// Get supported languages and runtimes with fallback
 export function useRuntimes() {
   const dispatch = useAppDispatch();
   
@@ -62,7 +82,7 @@ export function useRuntimes() {
           }>;
         }>('/compiler/runtimes');
         
-        if (response.success) {
+        if (response.success && response.data) {
           // Ensure aliases is always an array
           const runtimesData: RuntimeData[] = response.data.map(runtime => ({
             ...runtime,
@@ -72,21 +92,25 @@ export function useRuntimes() {
           dispatch(setRuntimesSuccess(runtimesData));
           return runtimesData;
         } else {
-          throw new Error('Failed to fetch runtimes');
+          throw new Error('Invalid response format');
         }
       } catch (error: unknown) {
-        const apiError = error as ApiError;
-        const message = apiError?.response?.data?.message || 'Failed to fetch runtimes';
-        dispatch(setRuntimesError(message));
-        throw error;
+        console.warn('Failed to fetch runtimes from API, using fallback:', error);
+        
+        // Use fallback runtimes
+        dispatch(setRuntimesSuccess(FALLBACK_RUNTIMES));
+        return FALLBACK_RUNTIMES;
       }
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
-    retry: 2,
+    retry: (failureCount, error) => {
+      // Don't retry, just use fallback
+      return false;
+    },
   });
 }
 
-// Get supported languages only
+// Get supported languages only with fallback
 export function useLanguages() {
   return useQuery({
     queryKey: queryKeys.compiler.languages,
@@ -97,35 +121,50 @@ export function useLanguages() {
           data: string[];
         }>('/compiler/languages');
         
-        return response.success ? response.data : [];
+        if (response.success && response.data) {
+          return response.data;
+        } else {
+          throw new Error('Invalid response format');
+        }
       } catch (error) {
-        console.error('Failed to fetch languages:', error);
+        console.warn('Failed to fetch languages from API, using fallback:', error);
         // Return fallback languages
-        return ['javascript', 'python', 'java', 'cpp', 'c', 'go', 'rust'];
+        return FALLBACK_LANGUAGES;
       }
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
+    retry: false, // Don't retry, use fallback immediately
   });
 }
 
-// Check compiler health
+// Check compiler health with fallback
 export function useCompilerHealth() {
   return useQuery({
     queryKey: queryKeys.compiler.health,
     queryFn: async () => {
-      const response = await api.get<{
-        status: string;
-        message: string;
-        timestamp: string;
-      }>('/compiler/health');
-      return response;
+      try {
+        const response = await api.get<{
+          status: string;
+          message: string;
+          timestamp: string;
+        }>('/compiler/health');
+        return response;
+      } catch (error) {
+        console.warn('Compiler health check failed:', error);
+        // Return offline status
+        return {
+          status: 'failed',
+          message: 'Compiler service is currently unavailable',
+          timestamp: new Date().toISOString()
+        };
+      }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: 1,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: false, // Don't retry health checks
   });
 }
 
-// Execute code mutation
+// Execute code mutation with better error handling
 export function useExecuteCode() {
   const dispatch = useAppDispatch();
   
@@ -140,40 +179,44 @@ export function useExecuteCode() {
           message?: string;
         }>('/compiler/execute', request);
         
-        if (response.success) {
+        if (response.success && response.data) {
           return response.data;
         } else {
           throw new Error(response.message || 'Execution failed');
         }
       } catch (error: unknown) {
         const apiError = error as ApiError;
-        // Handle different types of errors
+        
+        // Handle different types of errors with user-friendly messages
         if (apiError?.response?.status === 408) {
           throw new Error('Code execution timed out (30s limit exceeded)');
         } else if (apiError?.response?.status === 429) {
           throw new Error('Too many requests. Please wait before executing again.');
+        } else if (apiError?.response?.status === 503) {
+          throw new Error('Compiler service is currently unavailable. Please try again later.');
         } else if (apiError?.response?.data?.message) {
           throw new Error(apiError.response.data.message);
+        } else if (apiError?.message) {
+          throw new Error(apiError.message);
         } else {
-          throw new Error('Code execution failed. Please try again.');
+          throw new Error('Code execution failed. Please check your code and try again.');
         }
       }
     },
     onSuccess: (result) => {
       dispatch(setExecutionSuccess(result));
       
-      // Show success toast for successful execution
+      // Show appropriate toast based on exit code
       if (result.run.code === 0) {
         dispatch(addToast({
-          title: 'Execution Successful',
+          title: 'Execution Successful! 🎉',
           description: `Code executed successfully in ${result.language} ${result.version}`,
           type: 'success',
         }));
       } else {
-        // Show warning for non-zero exit codes
         dispatch(addToast({
-          title: 'Execution Completed',
-          description: `Code finished with exit code ${result.run.code}`,
+          title: 'Execution Completed ⚠️',
+          description: `Code finished with exit code ${result.run.code}. Check the output for details.`,
           type: 'warning',
         }));
       }
@@ -184,10 +227,13 @@ export function useExecuteCode() {
       dispatch(setExecutionError(message));
       
       dispatch(addToast({
-        title: 'Execution Failed',
+        title: 'Execution Failed ❌',
         description: message,
         type: 'error',
       }));
+    },
+    onSettled: () => {
+      dispatch(setExecuting(false));
     },
   });
 }
@@ -221,9 +267,12 @@ export function useCompilerActions() {
 export function useLanguageVersions(language: string) {
   const { data: runtimes } = useRuntimes();
   
+  const versions = runtimes?.filter(r => r.language === language).map(r => r.version) || [];
+  const defaultVersion = runtimes?.find(r => r.language === language)?.version || '';
+  
   return {
-    versions: runtimes?.filter(r => r.language === language).map(r => r.version) || [],
-    defaultVersion: runtimes?.find(r => r.language === language)?.version || '',
+    versions,
+    defaultVersion,
   };
 }
 
@@ -289,36 +338,10 @@ class Program {
   };
 }
 
-// Keyboard shortcuts hook
-export function useCompilerShortcuts(onExecute: () => void, onSave: () => void) {
-  useEffect(() => {
-    const handleKeyboard = (event: KeyboardEvent) => {
-      // Ctrl+Enter or Cmd+Enter to execute
-      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-        event.preventDefault();
-        onExecute();
-      }
-      
-      // Ctrl+S or Cmd+S to save
-      if ((event.ctrlKey || event.metaKey) && event.key === 's') {
-        event.preventDefault();
-        onSave();
-      }
-    };
-    
-    document.addEventListener('keydown', handleKeyboard);
-    
-    return () => {
-      document.removeEventListener('keydown', handleKeyboard);
-    };
-  }, [onExecute, onSave]);
-}
-
 // Auto-save functionality
 export function useAutoSave(code: string, language: string, delay: number = 2000) {
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Save to localStorage as backup
       try {
         const saveData = {
           code,

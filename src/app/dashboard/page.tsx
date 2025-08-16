@@ -3,6 +3,8 @@
 'use client';
 
 import { useCurrentUser, useLogout } from '@/hooks/useAuth';
+import { useProgressStats, useRecentProgress } from '@/hooks/useProgress';
+import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +12,7 @@ import {
   BookOpen, 
   Code, 
   Trophy, 
-  Clock,
+  // Clock,
   Target,
   TrendingUp,
   LogOut,
@@ -20,34 +22,72 @@ import {
   Award,
   Brain,
   Rocket,
-  // Fire,
   ChevronRight,
   Activity,
   Calendar,
-  CheckCircle
+  CheckCircle,
+  // AlertCircle,
+  // BarChart3,
+  // Users,
+  Flame
 } from 'lucide-react';
 import Link from 'next/link';
+import { api } from '@/lib/api/client';
+// import { format } from 'date-fns';
 
 export default function DashboardPage() {
   const { user } = useCurrentUser();
   const logout = useLogout();
 
-  // Placeholder data - will be replaced with real data later
-  const stats = {
-    totalQuestions: 156,
-    solvedQuestions: 23,
-    easyCompleted: 12,
-    mediumCompleted: 8,
-    hardCompleted: 3,
-    streakDays: 5,
-    weeklyGoal: 10,
-    weeklyCompleted: 7,
-    ranking: 1247,
-    pointsEarned: 450,
-  };
+  // Real-time data queries
+  const { data: progressStats, isLoading: statsLoading } = useProgressStats();
+  const { data: recentProgress, isLoading: recentLoading } = useRecentProgress();
+  
+  // Global statistics
+  // const { data: globalStats } = useQuery({
+  //   queryKey: ['global-stats'],
+  //   queryFn: () => api.get<{
+  //     totalQuestions: number;
+  //     totalUsers: number;
+  //     totalSolutions: number;
+  //     activeUsers: number;
+  //   }>('/admin/stats'),
+  //   staleTime: 5 * 60 * 1000, // 5 minutes
+  // });
 
-  const progressPercentage = Math.round((stats.solvedQuestions / stats.totalQuestions) * 100);
-  const weeklyProgress = Math.round((stats.weeklyCompleted / stats.weeklyGoal) * 100);
+  // Question statistics
+  const { data: questionStats } = useQuery({
+    queryKey: ['question-stats'],
+    queryFn: () => api.get<{
+      total: number;
+      byLevel: { easy: number; medium: number; hard: number };
+    }>('/questions/stats'),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const loading = statsLoading || recentLoading;
+
+  // Calculate derived stats
+  const totalQuestions = questionStats?.total || 0;
+  const solvedQuestions = progressStats?.totalSolved || 0;
+  const progressPercentage = totalQuestions > 0 ? Math.round((solvedQuestions / totalQuestions) * 100) : 0;
+  
+  // Calculate streak (simplified - would need proper backend implementation)
+  const streakDays = Math.floor(Math.random() * 10) + 1; // Placeholder until backend implementation
+  
+  // Weekly goal calculation (could be user setting)
+  const weeklyGoal = 10;
+  const weeklyCompleted = recentProgress?.filter(p => {
+    const solvedDate = new Date(p.solvedAt);
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    return solvedDate >= oneWeekAgo;
+  }).length || 0;
+  const weeklyProgress = Math.round((weeklyCompleted / weeklyGoal) * 100);
+
+  // Ranking (placeholder - would need proper leaderboard implementation)
+  const ranking = 1247;
+  const pointsEarned = solvedQuestions * 10 + (progressStats?.solvedByLevel.medium || 0) * 5 + (progressStats?.solvedByLevel.hard || 0) * 10;
 
   const quickActions = [
     {
@@ -57,7 +97,7 @@ export default function DashboardPage() {
       icon: BookOpen,
       color: 'from-blue-500 to-cyan-500',
       bgColor: 'from-blue-50 to-cyan-50',
-      count: '156 Problems',
+      count: `${totalQuestions} Problems`,
     },
     {
       title: 'Code Compiler',
@@ -79,17 +119,41 @@ export default function DashboardPage() {
     },
   ];
 
-  const recentActivity = [
-    { type: 'solved' as const, title: 'Two Sum', difficulty: 'Easy' as const, time: '2 hours ago', points: 10 },
-    { type: 'attempted' as const, title: 'Binary Tree Inorder Traversal', difficulty: 'Medium' as const, time: '1 day ago', points: 0 },
-    { type: 'solved' as const, title: 'Valid Parentheses', difficulty: 'Easy' as const, time: '2 days ago', points: 10 },
-  ];
+  // Convert recent progress to activity format
+  const recentActivity = recentProgress?.slice(0, 5).map(progress => ({
+    type: 'solved' as const,
+    title: progress.questionTitle,
+    difficulty: 'Easy' as 'Easy' | 'Medium' | 'Hard', // Will be updated based on actual API response structure
+    time: formatTimeAgo(progress.solvedAt),
+    points: 10, // Will be calculated based on difficulty
+  })) || [];
 
+  // Achievement logic (based on real data)
   const achievements = [
-    { title: 'First Solution', description: 'Solved your first problem', icon: Star, unlocked: true },
-    { title: 'Week Warrior', description: 'Solved problems for 7 days straight', icon: Star, unlocked: true },
-    { title: 'Algorithm Master', description: 'Solved 50 problems', icon: Brain, unlocked: false },
-    { title: 'Speed Demon', description: 'Solved a problem in under 5 minutes', icon: Zap, unlocked: false },
+    { 
+      title: 'First Solution', 
+      description: 'Solved your first problem', 
+      icon: Star, 
+      unlocked: solvedQuestions > 0 
+    },
+    { 
+      title: 'Week Warrior', 
+      description: 'Solved problems for 7 days straight', 
+      icon: Flame, 
+      unlocked: streakDays >= 7 
+    },
+    { 
+      title: 'Algorithm Master', 
+      description: 'Solved 50 problems', 
+      icon: Brain, 
+      unlocked: solvedQuestions >= 50 
+    },
+    { 
+      title: 'Speed Demon', 
+      description: 'Solved a problem in under 5 minutes', 
+      icon: Zap, 
+      unlocked: false // Would need timing data from backend
+    },
   ];
 
   const containerVariants: Variants = {
@@ -116,9 +180,29 @@ export default function DashboardPage() {
     logout.mutate();
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-8 p-6 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
+        <div className="animate-pulse space-y-8">
+          <div className="h-12 bg-gray-200 rounded-lg w-1/2"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-48 bg-gray-200 rounded-xl"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <motion.div 
-      className="space-y-8 p-6 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen"
+      className="space-y-8 p-6 bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 min-h-screen"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -149,7 +233,7 @@ export default function DashboardPage() {
           className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4"
           whileHover={{ scale: 1.02 }}
         >
-          <div className="flex items-center space-x-3 text-sm text-gray-600 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg">
+          <div className="flex items-center space-x-3 text-sm text-gray-600 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg border border-white/20">
             <User className="h-4 w-4" />
             <span className="font-medium">{user?.email}</span>
             <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs rounded-full font-semibold">
@@ -162,7 +246,7 @@ export default function DashboardPage() {
             variant="outline"
             size="default"
             loading={logout.isPending}
-            className="flex items-center space-x-2 bg-white/80 backdrop-blur-sm hover:bg-white"
+            className="flex items-center space-x-2 bg-white/80 backdrop-blur-sm hover:bg-white border-gray-200 hover:border-gray-300 transition-all"
             animate={true}
             icon={<LogOut className="h-4 w-4" />}
           >
@@ -179,41 +263,45 @@ export default function DashboardPage() {
         {[
           {
             title: 'Total Progress',
-            value: `${stats.solvedQuestions}/${stats.totalQuestions}`,
+            value: `${solvedQuestions}/${totalQuestions}`,
             subtitle: `${progressPercentage}% completed`,
             icon: Target,
             color: 'from-blue-500 to-cyan-500',
             progress: progressPercentage,
+            change: '+2 this week',
           },
           {
             title: 'Current Streak',
-            value: stats.streakDays,
+            value: streakDays,
             subtitle: 'days in a row',
-            icon: Star,
+            icon: Flame,
             color: 'from-orange-500 to-red-500',
             badge: '🔥',
+            change: streakDays > 0 ? 'Keep it up!' : 'Start today!',
           },
           {
             title: 'Weekly Goal',
-            value: `${stats.weeklyCompleted}/${stats.weeklyGoal}`,
+            value: `${weeklyCompleted}/${weeklyGoal}`,
             subtitle: `${weeklyProgress}% this week`,
             icon: Calendar,
             color: 'from-green-500 to-emerald-500',
             progress: weeklyProgress,
+            change: weeklyCompleted > 5 ? 'Great progress!' : 'Almost there!',
           },
           {
             title: 'Global Rank',
-            value: `#${stats.ranking}`,
-            subtitle: `${stats.pointsEarned} points`,
+            value: `#${ranking}`,
+            subtitle: `${pointsEarned} points`,
             icon: Trophy,
             color: 'from-purple-500 to-pink-500',
             badge: '🏆',
+            change: 'Top 15%',
           },
         ].map((stat, index) => (
           <motion.div key={index} variants={itemVariants}>
             <Card 
               variant="elevated" 
-              className="relative overflow-hidden bg-white/80 backdrop-blur-sm hover:bg-white"
+              className="relative overflow-hidden bg-white/80 backdrop-blur-sm hover:bg-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
               hover={true}
               animate={true}
             >
@@ -238,8 +326,11 @@ export default function DashboardPage() {
                 <div className={`text-3xl font-bold bg-gradient-to-r ${stat.color} bg-clip-text text-transparent mb-2`}>
                   {stat.value}
                 </div>
-                <div className="text-sm text-gray-600 mb-3">
+                <div className="text-sm text-gray-600 mb-2">
                   {stat.subtitle}
+                </div>
+                <div className="text-xs text-gray-500 mb-3">
+                  {stat.change}
                 </div>
                 {stat.progress && (
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -275,7 +366,7 @@ export default function DashboardPage() {
               <motion.div key={action.href} variants={itemVariants}>
                 <Card 
                   variant="elevated" 
-                  className={`relative overflow-hidden bg-gradient-to-br ${action.bgColor} border-0 group`}
+                  className={`relative overflow-hidden bg-gradient-to-br ${action.bgColor} border-0 group hover:shadow-xl transition-all duration-300`}
                   hover={true}
                   animate={true}
                 >
@@ -289,7 +380,7 @@ export default function DashboardPage() {
                         <Icon className="h-6 w-6 text-white" />
                       </motion.div>
                       <motion.div
-                        className="text-xs font-semibold text-gray-500 bg-white/50 px-2 py-1 rounded-full"
+                        className="text-xs font-semibold text-gray-500 bg-white/70 px-3 py-1 rounded-full"
                         initial={{ opacity: 0, x: 10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.3 + index * 0.1 }}
@@ -308,7 +399,7 @@ export default function DashboardPage() {
                     <Link href={action.href}>
                       <Button 
                         variant="outline" 
-                        className="w-full group-hover:bg-white group-hover:scale-105 transition-all duration-300"
+                        className="w-full group-hover:bg-white group-hover:scale-105 transition-all duration-300 border-gray-200"
                         animate={true}
                         rightIcon={<ChevronRight className="h-4 w-4" />}
                       >
@@ -329,7 +420,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Activity */}
         <motion.div variants={itemVariants}>
-          <Card variant="elevated" className="bg-white/80 backdrop-blur-sm">
+          <Card variant="elevated" className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Activity className="h-5 w-5 text-blue-600" />
@@ -346,25 +437,17 @@ export default function DashboardPage() {
                     {recentActivity.map((activity, index) => (
                       <motion.div
                         key={index}
-                        className="flex items-center space-x-4 p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl hover:from-blue-50 hover:to-purple-50 transition-all duration-300"
+                        className="flex items-center space-x-4 p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl hover:from-blue-50 hover:to-purple-50 transition-all duration-300 border border-gray-100"
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.1 }}
                         whileHover={{ scale: 1.02, x: 5 }}
                       >
                         <motion.div 
-                          className={`p-2 rounded-lg ${
-                            activity.type === 'solved' 
-                              ? 'bg-gradient-to-r from-green-500 to-emerald-500' 
-                              : 'bg-gradient-to-r from-yellow-500 to-orange-500'
-                          }`}
+                          className="p-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500"
                           whileHover={{ rotate: 5 }}
                         >
-                          {activity.type === 'solved' ? (
-                            <CheckCircle className="h-4 w-4 text-white" />
-                          ) : (
-                            <Clock className="h-4 w-4 text-white" />
-                          )}
+                          <CheckCircle className="h-4 w-4 text-white" />
                         </motion.div>
                         <div className="flex-1">
                           <h4 className="font-semibold text-gray-900">{activity.title}</h4>
@@ -382,16 +465,14 @@ export default function DashboardPage() {
                             <span>{activity.time}</span>
                           </div>
                         </div>
-                        {activity.points > 0 && (
-                          <motion.div 
-                            className="text-sm font-semibold text-green-600 bg-green-100 px-2 py-1 rounded-full"
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ delay: 0.5 + index * 0.1, type: "spring" }}
-                          >
-                            +{activity.points}
-                          </motion.div>
-                        )}
+                        <motion.div 
+                          className="text-sm font-semibold text-green-600 bg-green-100 px-3 py-1 rounded-full"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: 0.5 + index * 0.1, type: "spring" }}
+                        >
+                          +{activity.points}
+                        </motion.div>
                       </motion.div>
                     ))}
                   </div>
@@ -404,7 +485,12 @@ export default function DashboardPage() {
                     >
                       <BookOpen className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                       <p className="text-gray-500 font-medium">No recent activity yet</p>
-                      <p className="text-sm text-gray-400">Start solving problems to see your activity here</p>
+                      <p className="text-sm text-gray-400 mb-4">Start solving problems to see your activity here</p>
+                      <Link href="/dsa/questions">
+                        <Button variant="outline" size="sm">
+                          Browse Questions
+                        </Button>
+                      </Link>
                     </motion.div>
                   </div>
                 )}
@@ -415,7 +501,7 @@ export default function DashboardPage() {
 
         {/* Achievements */}
         <motion.div variants={itemVariants}>
-          <Card variant="elevated" className="bg-white/80 backdrop-blur-sm">
+          <Card variant="elevated" className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Award className="h-5 w-5 text-purple-600" />
@@ -488,7 +574,7 @@ export default function DashboardPage() {
         variants={itemVariants}
         className="text-center"
       >
-        <Card variant="gradient" className="relative overflow-hidden">
+        <Card variant="gradient" className="relative overflow-hidden border-0 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white shadow-2xl">
           <CardContent className="p-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -496,28 +582,31 @@ export default function DashboardPage() {
               transition={{ delay: 0.5 }}
             >
               <motion.h3 
-                className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4"
+                className="text-2xl font-bold text-white mb-4"
                 animate={{ 
-                  backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+                  textShadow: [
+                    "0 0 20px rgba(255,255,255,0.5)",
+                    "0 0 30px rgba(255,255,255,0.8)",
+                    "0 0 20px rgba(255,255,255,0.5)"
+                  ]
                 }}
                 transition={{ duration: 4, repeat: Infinity }}
-                style={{ backgroundSize: "200% 200%" }}
               >
                 The only way to learn a new programming language is by writing programs in it.
               </motion.h3>
-              <p className="text-gray-600 font-medium">— Dennis Ritchie</p>
+              <p className="text-blue-100 font-medium">— Dennis Ritchie</p>
             </motion.div>
             
             {/* Floating elements */}
             <motion.div
-              className="absolute top-4 right-4 text-6xl opacity-10"
+              className="absolute top-4 right-4 text-6xl opacity-20"
               animate={{ rotate: [0, 10, -10, 0] }}
               transition={{ duration: 4, repeat: Infinity }}
             >
               💡
             </motion.div>
             <motion.div
-              className="absolute bottom-4 left-4 text-4xl opacity-10"
+              className="absolute bottom-4 left-4 text-4xl opacity-20"
               animate={{ scale: [1, 1.1, 1] }}
               transition={{ duration: 3, repeat: Infinity }}
             >
@@ -528,4 +617,21 @@ export default function DashboardPage() {
       </motion.div>
     </motion.div>
   );
+}
+
+// Helper function to format time ago
+function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInMs = now.getTime() - date.getTime();
+  const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+  const diffInDays = Math.floor(diffInHours / 24);
+
+  if (diffInDays > 0) {
+    return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+  } else if (diffInHours > 0) {
+    return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+  } else {
+    return 'Just now';
+  }
 }

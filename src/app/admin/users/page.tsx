@@ -120,7 +120,7 @@ export default function AdminUsersPage() {
   const confirmRoleChange = () => {
     if (showRoleModal) {
       // Here you would call the API to update the user's role
-      console.log(`Changing ${showRoleModal.email} role to ${newRole}`);
+      // console.log(`Changing ${showRoleModal.email} role to ${newRole}`);
       // For now, just close the modal
       setShowRoleModal(null);
     }

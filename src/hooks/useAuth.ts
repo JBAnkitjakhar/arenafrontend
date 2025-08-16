@@ -36,7 +36,7 @@ export function useOAuthCallback() {
 
   return useMutation({
     mutationFn: async ({ token }: { token: string; userId?: string }) => {
-      console.log('useOAuthCallback: Starting authentication with token:', token.substring(0, 20) + '...');
+      // console.log('useOAuthCallback: Starting authentication with token:', token.substring(0, 20) + '...');
       
       // Store token first so API client can use it
       localStorage.setItem('auth_token', token); // Fixed: Use consistent key
@@ -50,7 +50,7 @@ export function useOAuthCallback() {
         },
       });
 
-      console.log('useOAuthCallback: API response status:', response.status);
+      // console.log('useOAuthCallback: API response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -59,12 +59,12 @@ export function useOAuthCallback() {
       }
 
       const userData = await response.json();
-      console.log('useOAuthCallback: User data received:', userData);
+      // console.log('useOAuthCallback: User data received:', userData);
       
       return { user: userData, token };
     },
     onSuccess: ({ user, token }) => {
-      console.log('useOAuthCallback: Success, updating state and redirecting');
+      // console.log('useOAuthCallback: Success, updating state and redirecting');
       
       // Update Redux state
       dispatch(loginSuccess({ user, token }));
@@ -79,11 +79,11 @@ export function useOAuthCallback() {
       } catch (toastError) {
         // Toast might not be available
         console.error(toastError);
-        console.log('Toast not available, skipping');
+        // console.log('Toast not available, skipping');
       }
       
       // Redirect to dashboard
-      console.log('Redirecting to dashboard...');
+      // console.log('Redirecting to dashboard...');
       router.push('/dashboard');
     },
     onError: (error: Error) => {
@@ -107,7 +107,7 @@ export function useOAuthCallback() {
       } catch (toastError) {
         // Toast might not be available
         console.error(toastError);
-        console.log('Toast not available, skipping');
+        // console.log('Toast not available, skipping');
       }
       
       // Redirect back to login with error

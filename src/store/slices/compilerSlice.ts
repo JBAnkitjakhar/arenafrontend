@@ -1,7 +1,7 @@
 // src/store/slices/compilerSlice.ts
 
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { ExecutionResponse } from '@/types';
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { ExecutionResponse } from "@/types";
 
 interface CompilerState {
   code: string;
@@ -29,9 +29,9 @@ interface CompilerState {
 
 const initialState: CompilerState = {
   code: '// Write your code here\nconsole.log("Hello, World!");',
-  language: 'javascript',
-  version: '18.15.0',
-  stdin: '',
+  language: "javascript",
+  version: "18.15.0",
+  stdin: "",
   output: null,
   isExecuting: false,
   isLoadingRuntimes: false,
@@ -42,38 +42,39 @@ const initialState: CompilerState = {
 };
 
 const compilerSlice = createSlice({
-  name: 'compiler',
+  name: "compiler",
   initialState,
   reducers: {
     // Code management
     setCode: (state, action: PayloadAction<string>) => {
       state.code = action.payload;
     },
-    
+
     setLanguage: (state, action: PayloadAction<string>) => {
       state.language = action.payload;
       // Find version for this language
-      const runtime = state.runtimes.find(r => r.language === action.payload);
+      const runtime = state.runtimes.find((r) => r.language === action.payload);
       if (runtime) {
         state.version = runtime.version;
       }
-      
+
       // Set default code template based on language
       switch (action.payload) {
-        case 'javascript':
-          state.code = '// Write your JavaScript code here\nconsole.log("Hello, World!");';
+        case "javascript":
+          state.code =
+            '// Write your JavaScript code here\nconsole.log("Hello, World!");';
           break;
-        case 'python':
+        case "python":
           state.code = '# Write your Python code here\nprint("Hello, World!")';
           break;
-        case 'java':
+        case "java":
           state.code = `public class Main {
     public static void main(String[] args) {
         System.out.println("Hello, World!");
     }
 }`;
           break;
-        case 'cpp':
+        case "cpp":
           state.code = `#include <iostream>
 using namespace std;
 
@@ -83,18 +84,18 @@ int main() {
 }`;
           break;
         default:
-          state.code = '// Write your code here';
+          state.code = "// Write your code here";
       }
     },
-    
+
     setVersion: (state, action: PayloadAction<string>) => {
       state.version = action.payload;
     },
-    
+
     setStdin: (state, action: PayloadAction<string>) => {
       state.stdin = action.payload;
     },
-    
+
     // Execution management
     setExecuting: (state, action: PayloadAction<boolean>) => {
       state.isExecuting = action.payload;
@@ -102,12 +103,12 @@ int main() {
         state.error = null;
       }
     },
-    
+
     setExecutionSuccess: (state, action: PayloadAction<ExecutionResponse>) => {
       state.output = action.payload;
       state.isExecuting = false;
       state.error = null;
-      
+
       // Add to history
       const historyItem = {
         id: Math.random().toString(36).substring(2, 15),
@@ -116,72 +117,83 @@ int main() {
         output: action.payload,
         timestamp: new Date().toISOString(),
       };
-      
+
       state.history.unshift(historyItem);
-      
+
       // Keep only last 10 executions
       if (state.history.length > 10) {
         state.history = state.history.slice(0, 10);
       }
     },
-    
+
     setExecutionError: (state, action: PayloadAction<string>) => {
       state.error = action.payload;
       state.isExecuting = false;
       state.output = null;
     },
-    
+
     // Runtimes management
     setRuntimesLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoadingRuntimes = action.payload;
     },
-    
-    setRuntimesSuccess: (state, action: PayloadAction<Array<{
-      language: string;
-      version: string;
-      aliases: string[];
-    }>>) => {
+
+    setRuntimesSuccess: (
+      state,
+      action: PayloadAction<
+        Array<{
+          language: string;
+          version: string;
+          aliases: string[];
+        }>
+      >
+    ) => {
       state.runtimes = action.payload;
-      state.supportedLanguages = [...new Set(action.payload.map(r => r.language))];
+      state.supportedLanguages = [
+        ...new Set(action.payload.map((r) => r.language)),
+      ];
       state.isLoadingRuntimes = false;
       state.error = null;
     },
-    
+
     setRuntimesError: (state, action: PayloadAction<string>) => {
       state.error = action.payload;
       state.isLoadingRuntimes = false;
     },
-    
+
     // History management
     clearHistory: (state) => {
       state.history = [];
     },
-    
+
     removeHistoryItem: (state, action: PayloadAction<string>) => {
-      state.history = state.history.filter(item => item.id !== action.payload);
+      state.history = state.history.filter(
+        (item) => item.id !== action.payload
+      );
     },
-    
+
     loadFromHistory: (state, action: PayloadAction<string>) => {
-      const historyItem = state.history.find(item => item.id === action.payload);
+      const historyItem = state.history.find(
+        (item) => item.id === action.payload
+      );
       if (historyItem) {
         state.code = historyItem.code;
         state.language = historyItem.language;
         state.output = historyItem.output;
       }
     },
-    
+
     // Reset
     resetCompiler: (state) => {
       state.code = initialState.code;
-      state.stdin = '';
+      state.stdin = "";
       state.output = null;
       state.error = null;
     },
-    
+
     clearError: (state) => {
       state.error = null;
     },
-    
+
     clearOutput: (state) => {
       state.output = null;
     },

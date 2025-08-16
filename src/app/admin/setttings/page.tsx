@@ -172,7 +172,7 @@ export default function AdminSettingsPage() {
 
   const handleSave = () => {
     // API call to save settings
-    console.log('Saving settings:', settings);
+    // console.log('Saving settings:', settings);
     setUnsavedChanges(false);
     // Show success toast
   };

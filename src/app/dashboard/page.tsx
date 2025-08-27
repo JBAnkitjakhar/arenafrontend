@@ -44,16 +44,16 @@ export default function DashboardPage() {
   const { data: recentProgress, isLoading: recentLoading } = useRecentProgress();
   
   // Global statistics
-  // const { data: globalStats } = useQuery({
-  //   queryKey: ['global-stats'],
-  //   queryFn: () => api.get<{
-  //     totalQuestions: number;
-  //     totalUsers: number;
-  //     totalSolutions: number;
-  //     activeUsers: number;
-  //   }>('/admin/stats'),
-  //   staleTime: 5 * 60 * 1000, // 5 minutes
-  // });
+//   const { data: globalStats } = useQuery({
+//   queryKey: ['global-stats'],
+//   queryFn: () => api.get<{
+//     totalQuestions: number;
+//     totalUsers: number;
+//     totalSolutions: number;
+//     activeUsers: number;
+//   }>('/admin/stats'),
+//   staleTime: 5 * 60 * 1000, // 5 minutes
+// });
 
   // Question statistics
   const { data: questionStats } = useQuery({
@@ -77,17 +77,19 @@ export default function DashboardPage() {
   
   // Weekly goal calculation (could be user setting)
   const weeklyGoal = 10;
-  const weeklyCompleted = recentProgress?.filter(p => {
-    const solvedDate = new Date(p.solvedAt);
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    return solvedDate >= oneWeekAgo;
-  }).length || 0;
-  const weeklyProgress = Math.round((weeklyCompleted / weeklyGoal) * 100);
+const weeklyCompleted = (recentProgress && Array.isArray(recentProgress)) 
+  ? recentProgress.filter(p => {
+      const solvedDate = new Date(p.solvedAt);
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      return solvedDate >= oneWeekAgo;
+    }).length 
+  : 0;
+const weeklyProgress = Math.round((weeklyCompleted / weeklyGoal) * 100);
 
   // Ranking (placeholder - would need proper leaderboard implementation)
   const ranking = 1247;
-  const pointsEarned = solvedQuestions * 10 + (progressStats?.solvedByLevel.medium || 0) * 5 + (progressStats?.solvedByLevel.hard || 0) * 10;
+  // const pointsEarned = solvedQuestions * 10 + (progressStats?.solvedByLevel.medium || 0) * 5 + (progressStats?.solvedByLevel.hard || 0) * 10;
 
   const quickActions = [
     {
@@ -120,13 +122,15 @@ export default function DashboardPage() {
   ];
 
   // Convert recent progress to activity format
-  const recentActivity = recentProgress?.slice(0, 5).map(progress => ({
-    type: 'solved' as const,
-    title: progress.questionTitle,
-    difficulty: 'Easy' as 'Easy' | 'Medium' | 'Hard', // Will be updated based on actual API response structure
-    time: formatTimeAgo(progress.solvedAt),
-    points: 10, // Will be calculated based on difficulty
-  })) || [];
+const recentActivity = recentProgress && Array.isArray(recentProgress) 
+  ? recentProgress.slice(0, 5).map(progress => ({
+      type: 'solved' as const,
+      title: progress.questionTitle,
+      difficulty: 'Easy' as 'Easy' | 'Medium' | 'Hard',
+      time: formatTimeAgo(progress.solvedAt),
+      points: 10,
+    }))
+  : [];
 
   // Achievement logic (based on real data)
   const achievements = [
@@ -291,7 +295,7 @@ export default function DashboardPage() {
           {
             title: 'Global Rank',
             value: `#${ranking}`,
-            subtitle: `${pointsEarned} points`,
+            // subtitle: `${pointsEarned} points`,
             icon: Trophy,
             color: 'from-purple-500 to-pink-500',
             badge: '🏆',
